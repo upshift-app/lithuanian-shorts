@@ -21,8 +21,21 @@
     </div>
     <div>
       <label for="rating">{{ ui('p_rating') }}</label>
-      <input type="text" id="rating" name="rating"
-             value="{{ form.get('rating','') }}" placeholder="{{ ui('p_rating_ph') }}">
+      {% set picked = form.get('rating_custom','') if form.get('rating') == 'custom'
+                      else form.get('rating','') %}
+      {% set known = ['V', 'N-7', 'N-13', 'N-16', 'N-18'] %}
+      {% set custom = picked and picked not in known %}
+      <select id="rating" name="rating">
+        <option value="" {{ 'selected' if not picked }}>{{ ui('p_rating_none') }}</option>
+        {% for r in known %}
+          <option value="{{ r }}" {{ 'selected' if picked == r }}>{{ r }}</option>
+        {% endfor %}
+        <option value="custom" {{ 'selected' if custom }}>{{ ui('p_rating_custom') }}</option>
+      </select>
+      <input type="text" id="rating_custom" name="rating_custom"
+             style="margin-top:6px{{ '' if custom else ';display:none' }}"
+             value="{{ picked if custom else '' }}"
+             placeholder="{{ ui('p_rating_ph') }}">
     </div>
     <div>
       <label for="lang">{{ ui('p_doclang') }}</label>
@@ -264,6 +277,19 @@
 {% endif %}
 
 <script>
+// The age rating is a short list plus "other", which reveals a free-text box.
+(function () {
+  var select = document.getElementById('rating');
+  var custom = document.getElementById('rating_custom');
+  if (!select || !custom) return;
+  function sync() {
+    var on = select.value === 'custom';
+    custom.style.display = on ? '' : 'none';
+    if (on) custom.focus();
+  }
+  select.addEventListener('change', sync);
+})();
+
 // "All genres" is the resting state: ticking it clears the individual boxes
 // (an empty selection already means every genre server-side), and ticking any
 // single genre unticks it.

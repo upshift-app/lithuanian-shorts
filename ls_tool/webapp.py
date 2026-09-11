@@ -74,6 +74,14 @@ def _request_from_json(raw: dict) -> ProgrammeRequest:
     return ProgrammeRequest(**{k: v for k, v in raw.items() if k in fields})
 
 
+def _rating(form) -> Optional[str]:
+    """The rating is a short list of the usual indexes plus a free-text 'other'."""
+    picked = (form.get("rating") or "").strip()
+    if picked == "custom":
+        picked = (form.get("rating_custom") or "").strip()
+    return picked or None
+
+
 def _download_name(title: str, option: Optional[int], fmt: str, lang: str) -> str:
     """A file name the curator can tell apart in their downloads folder."""
     slug = re.sub(r"[^a-z0-9]+", "-", fold(title)).strip("-") or "programme"
@@ -324,7 +332,7 @@ def create_app() -> Flask:
             title=request.form.get("title") or "",
             occasion=request.form.get("occasion") or None,
             intro=request.form.get("intro") or None,
-            rating=request.form.get("rating") or None,
+            rating=_rating(request.form),
             keywords=selected,
             query=request.form.get("query") or None,
             genres=request.form.getlist("genres"),
