@@ -286,7 +286,10 @@ def _film_block(film, lang: str, st, text_width: float, still_width: float,
 
 def programme_pdf(proposals: Sequence[Programme], alternates=(),
                   path: Optional[Path] = None, subtitle: Optional[str] = None,
-                  lang: Optional[str] = None) -> Path:
+                  lang: Optional[str] = None, notes: bool = True) -> Path:
+    """One PDF per programme. ``notes=False`` leaves out the curatorial
+    apparatus - licence warnings and the like - for a document that goes out to
+    a venue rather than around the office."""
     req = proposals[0].request if proposals else None
     lang = norm_lang(lang or (req.lang if req else DEFAULT_LANG))
 
@@ -339,7 +342,7 @@ def programme_pdf(proposals: Sequence[Programme], alternates=(),
             story.append(_film_block(film, lang, st, text_width, STILL_WIDTH,
                                      gap, deadline))
 
-        warnings = prog.warnings(lang)
+        warnings = prog.warnings(lang) if notes else []
         if warnings:
             block = [Spacer(1, 18),
                      Paragraph(f"<b>{t(lang, 'notes')}</b>", st["note"])]

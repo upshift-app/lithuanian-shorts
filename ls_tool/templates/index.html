@@ -177,10 +177,7 @@
   {% else %}
     <div class="row" style="justify-content:space-between;align-items:center">
       <h2 style="margin:6px 0">{{ ui('p_proposals') }}</h2>
-      <div class="actions" style="margin:0">
-        <a class="btn" href="{{ url_for('download', token=token, fmt='docx') }}">{{ ui('download_word') }}</a>
-        <a class="btn ghost" href="{{ url_for('download', token=token, fmt='pdf') }}">{{ ui('download_pdf') }}</a>
-      </div>
+      <span class="hint" style="align-self:center">{{ ui('p_download_hint') }}</span>
     </div>
 
     {% for prog in proposals %}
@@ -191,6 +188,10 @@
           {{ prog.films|length }} {{ ui('p_films') }} · {{ prog.runtime(ui_lang) }}
           · {{ ui('p_match') }} {{ '%.2f'|format(prog.score) }}
         </span>
+      </div>
+      <div class="actions" style="margin:8px 0 0">
+        <a class="btn" href="{{ url_for('download', token=token, fmt='docx', option=loop.index) }}">{{ ui('download_word') }}</a>
+        <a class="btn ghost" href="{{ url_for('download', token=token, fmt='pdf', option=loop.index) }}">{{ ui('download_pdf') }}</a>
       </div>
       <table style="margin-top:10px">
         <thead>

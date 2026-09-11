@@ -90,6 +90,7 @@ STRINGS = {
         "p_fail_body": "Pagal šiuos kriterijus rasta {n} tinkamų filmų. Pabandykite "
                        "atlaisvinti filtrus arba padidinti trukmės ribą.",
         "p_proposals": "Pasiūlymai",
+        "p_download_hint": "Atsisiųskite tą variantą, kurį pasirinkote - į dokumentą pateks tik jis.",
         "p_variant": "{n} variantas",
         "p_films": "filmai",
         "p_match": "atitikimas",
@@ -346,6 +347,7 @@ STRINGS = {
         "p_fail_body": "These criteria matched {n} eligible films. Try relaxing the "
                        "filters or raising the running-time limit.",
         "p_proposals": "Proposals",
+        "p_download_hint": "Download the option you picked - the document contains only that programme.",
         "p_variant": "Option {n}",
         "p_films": "films",
         "p_match": "match",

@@ -9,8 +9,9 @@ from __future__ import annotations
 import dataclasses
 import datetime as _dt
 import os
+import re
 import uuid
-from typing import Dict
+from typing import Dict, Optional
 from urllib.parse import urlparse
 
 from flask import (Flask, abort, g, make_response, redirect, render_template,
@@ -20,6 +21,7 @@ from werkzeug.datastructures import MultiDict
 from . import auth, export_docx, export_pdf, manual_films, screenings as scr
 from . import store
 from .catalog import fold, load_catalog
+from .config import OUTPUT_DIR
 from .i18n import film_title, minutes_label, norm_lang
 from .ui_strings import ui as ui_string
 from .programme import MAX_PROPOSALS, Programme, ProgrammeRequest, generate
@@ -70,6 +72,13 @@ def _request_json(req: ProgrammeRequest) -> dict:
 def _request_from_json(raw: dict) -> ProgrammeRequest:
     fields = set(ProgrammeRequest.__dataclass_fields__)
     return ProgrammeRequest(**{k: v for k, v in raw.items() if k in fields})
+
+
+def _download_name(title: str, option: Optional[int], fmt: str, lang: str) -> str:
+    """A file name the curator can tell apart in their downloads folder."""
+    slug = re.sub(r"[^a-z0-9]+", "-", fold(title)).strip("-") or "programme"
+    part = f"-{option}" if option else ""
+    return f"{_dt.date.today():%Y%m%d}-{slug[:60]}{part}-{lang}.{fmt}"
 
 
 def _programme_json(prog: Programme) -> dict:
@@ -373,12 +382,29 @@ def create_app() -> Flask:
                       if f is not None]
         if not proposals:
             abort(404)
+
+        # The curator picks one option and gets a document containing only that
+        # programme - the alternatives are a working aid, not something a venue
+        # should ever read.
+        option = _int(request.args.get("option"))
+        if option is not None:
+            if not 1 <= option <= len(proposals):
+                abort(404)
+            proposals = [proposals[option - 1]]
+
         lang = req.lang
+        title = req.title or ""
+        name = _download_name(title or "programme", option, fmt, lang)
+        path = OUTPUT_DIR / name
+        if option is not None:
+            alternates = []
         if fmt == "docx":
-            path = export_docx.programme_docx(proposals, alternates, lang=lang)
+            path = export_docx.programme_docx(proposals, alternates, path=path,
+                                              lang=lang)
         else:
-            path = export_pdf.programme_pdf(proposals, alternates, lang=lang)
-        return send_file(str(path), as_attachment=True, download_name=path.name)
+            path = export_pdf.programme_pdf(proposals, alternates, path=path,
+                                            lang=lang, notes=option is None)
+        return send_file(str(path), as_attachment=True, download_name=name)
 
     # --------------------------------------------------------- screening log
     @app.route("/screenings", methods=["GET", "POST"])
