@@ -83,7 +83,45 @@ def _programme_from_json(raw: dict, cat, req: ProgrammeRequest) -> Programme:
                      breakdown=raw.get("breakdown") or {}, request=req)
 
 
+def _missing_config() -> list:
+    """Environment variables the app cannot run without."""
+    return [name for name in ("SUPABASE_URL", "FLASK_SECRET_KEY")
+            if not os.environ.get(name)] + (
+        [] if (os.environ.get("SUPABASE_SERVICE_KEY")
+               or os.environ.get("SUPABASE_SECRET_KEY"))
+        else ["SUPABASE_SERVICE_KEY"])
+
+
+def _config_error_app(missing: list) -> Flask:
+    """A one-page app that says what is missing.
+
+    Raising at import time gives an opaque "Internal Server Error" with the
+    reason buried in the platform log, which is the worst possible way to learn
+    that an environment variable was not set.
+    """
+    app = Flask(__name__)
+
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
+    def config_error(path):
+        return (
+            "<h1>Configuration incomplete</h1>"
+            "<p>These environment variables are not set:</p><ul>"
+            + "".join(f"<li><code>{name}</code></li>" for name in missing)
+            + "</ul><p>Add them in Vercel under Settings &rarr; Environment "
+              "Variables (Production and Preview), then redeploy. Locally they "
+              "go in <code>.env</code>.</p>",
+            503,
+        )
+
+    return app
+
+
 def create_app() -> Flask:
+    missing = _missing_config()
+    if missing:
+        return _config_error_app(missing)
+
     app = Flask(__name__)
     app.config["catalog"] = None
     app.secret_key = auth.secret_key()
