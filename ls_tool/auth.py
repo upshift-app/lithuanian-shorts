@@ -21,7 +21,7 @@ from . import store
 SESSION_KEY = "uid"
 
 # Endpoints reachable without being signed in.
-PUBLIC_ENDPOINTS = {"login", "static"}
+PUBLIC_ENDPOINTS = {"login", "static", "keepalive"}
 
 
 def secret_key() -> str:

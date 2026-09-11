@@ -4,10 +4,26 @@
     {
       "src": "api/index.py",
       "use": "@vercel/python",
-      "config": { "includeFiles": "ls_tool/**", "maxLambdaSize": "45mb" }
+      "config": {
+        "includeFiles": "ls_tool/**",
+        "maxLambdaSize": "45mb"
+      }
     }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/api/index.py" }
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.py"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/keepalive",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/keepalive",
+      "schedule": "0 9 * * 4"
+    }
   ]
 }

@@ -393,6 +393,27 @@ def create_app() -> Flask:
             abort(404)
         return req, proposals, alternates
 
+    @app.route("/api/keepalive")
+    def keepalive():
+        """Touched by a Vercel cron job twice a week.
+
+        A free Supabase project is paused after a week without traffic, which
+        would take the archive offline until someone restored it by hand. One
+        cheap read is enough to count as activity. Public on purpose: cron
+        invocations carry no session and do not follow redirects, so a login
+        redirect here would silently do nothing.
+        """
+        secret = os.environ.get("CRON_SECRET")
+        if secret and request.headers.get("Authorization") != f"Bearer {secret}":
+            return jsonify({"error": "unauthorized"}), 401
+        try:
+            rows = (store.client().table("films").select("id")
+                    .limit(1).execute().data)
+        except Exception as e:  # the point is to report it, not to crash
+            return jsonify({"ok": False, "error": str(e)[:200]}), 502
+        return jsonify({"ok": True, "films_reachable": bool(rows),
+                        "at": _dt.datetime.utcnow().isoformat(timespec="seconds")})
+
     @app.route("/describe/<token>", methods=["POST"])
     def describe(token):
         """Draft the programme's introductory paragraph. The team edits it."""
