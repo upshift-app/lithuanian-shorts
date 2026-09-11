@@ -202,10 +202,20 @@
           · {{ ui('p_match') }} {{ '%.2f'|format(prog.score) }}
         </span>
       </div>
-      <div class="actions" style="margin:8px 0 0">
-        <a class="btn" href="{{ url_for('download', token=token, fmt='docx', option=loop.index) }}">{{ ui('download_word') }}</a>
-        <a class="btn ghost" href="{{ url_for('download', token=token, fmt='pdf', option=loop.index) }}">{{ ui('download_pdf') }}</a>
-      </div>
+      <form class="dl" method="post" data-token="{{ token }}" data-option="{{ loop.index }}"
+            action="{{ url_for('download', token=token, fmt='pdf', option=loop.index) }}">
+        <label for="intro-{{ loop.index }}" style="margin-top:10px">{{ ui('p_intro') }}</label>
+        <textarea id="intro-{{ loop.index }}" name="intro" rows="4"
+                  placeholder="{{ ui('p_intro_ph') }}">{{ req.intro or '' }}</textarea>
+        <div class="actions" style="margin:8px 0 0">
+          <button type="submit"
+                  formaction="{{ url_for('download', token=token, fmt='docx', option=loop.index) }}">{{ ui('download_word') }}</button>
+          <button type="submit" class="ghost"
+                  formaction="{{ url_for('download', token=token, fmt='pdf', option=loop.index) }}">{{ ui('download_pdf') }}</button>
+          <button type="button" class="ghost draft">{{ ui('p_describe') }}</button>
+          <span class="hint draft-status" style="align-self:center"></span>
+        </div>
+      </form>
       <table style="margin-top:10px">
         <thead>
           <tr><th>{{ ui('th_no') }}</th><th>{{ ui('th_film') }}</th>
@@ -277,6 +287,38 @@
 {% endif %}
 
 <script>
+// "Draft description" asks the model for an opening paragraph and drops it in
+// the box, where it is edited before the download - never sent out unread.
+(function () {
+  var forms = Array.prototype.slice.call(document.querySelectorAll('form.dl'));
+  forms.forEach(function (form) {
+    var button = form.querySelector('.draft');
+    var status = form.querySelector('.draft-status');
+    var box = form.querySelector('textarea[name=intro]');
+    if (!button || !box) return;
+
+    button.addEventListener('click', function () {
+      var label = button.textContent;
+      button.disabled = true;
+      button.textContent = {{ ui('p_describing')|tojson }};
+      status.textContent = '';
+
+      var body = new FormData();
+      body.append('option', form.dataset.option);
+
+      fetch('/describe/' + form.dataset.token, {method: 'POST', body: body})
+        .then(function (r) { return r.json().then(function (d) { return [r.ok, d]; }); })
+        .then(function (pair) {
+          if (!pair[0]) throw new Error(pair[1].error || 'failed');
+          box.value = pair[1].text;
+          box.focus();
+        })
+        .catch(function (e) { status.textContent = e.message; })
+        .then(function () { button.disabled = false; button.textContent = label; });
+    });
+  });
+})();
+
 // The age rating is a short list plus "other", which reveals a free-text box.
 (function () {
   var select = document.getElementById('rating');

@@ -14,11 +14,12 @@ import uuid
 from typing import Dict, Optional
 from urllib.parse import urlparse
 
-from flask import (Flask, abort, g, make_response, redirect, render_template,
-                   request, send_file, session, url_for)
+from flask import (Flask, abort, g, jsonify, make_response, redirect,
+                   render_template, request, send_file, session, url_for)
 from werkzeug.datastructures import MultiDict
 
-from . import auth, export_docx, export_pdf, manual_films, screenings as scr
+from . import auth, enrich, export_docx, export_pdf, manual_films
+from . import screenings as scr
 from . import store
 from .catalog import fold, load_catalog
 from .config import OUTPUT_DIR
@@ -376,10 +377,10 @@ def create_app() -> Flask:
         })
         return render_template("index.html", **ctx)
 
-    @app.route("/download/<token>.<fmt>")
-    def download(token, fmt):
+    def _stored_programme(token):
+        """The films behind a generated proposal, rebuilt from the catalogue."""
         entry = store.document_get(token)
-        if not entry or entry["kind"] != "programme" or fmt not in ("docx", "pdf"):
+        if not entry or entry["kind"] != "programme":
             abort(404)
         payload = entry["payload"]
         req = _request_from_json(payload["request"])
@@ -390,6 +391,32 @@ def create_app() -> Flask:
                       if f is not None]
         if not proposals:
             abort(404)
+        return req, proposals, alternates
+
+    @app.route("/describe/<token>", methods=["POST"])
+    def describe(token):
+        """Draft the programme's introductory paragraph. The team edits it."""
+        req, proposals, _alternates = _stored_programme(token)
+        option = _int(request.form.get("option")) or 1
+        if not 1 <= option <= len(proposals):
+            abort(404)
+        try:
+            text = enrich.describe_programme(
+                proposals[option - 1].films, req.title or None, req.lang)
+        except enrich.EnrichError as e:
+            return jsonify({"error": str(e)}), 502
+        return jsonify({"text": text})
+
+    @app.route("/download/<token>.<fmt>", methods=["GET", "POST"])
+    def download(token, fmt):
+        if fmt not in ("docx", "pdf"):
+            abort(404)
+        req, proposals, alternates = _stored_programme(token)
+
+        # The description can be written, drafted or edited right before the
+        # download, so what the form posts wins over what was stored.
+        if request.method == "POST" and "intro" in request.form:
+            req.intro = (request.form.get("intro") or "").strip() or None
 
         # The curator picks one option and gets a document containing only that
         # programme - the alternatives are a working aid, not something a venue

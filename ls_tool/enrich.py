@@ -265,3 +265,101 @@ def approve(film_id: int, keywords: Sequence[str], keyword_map: Dict[str, str],
     }
     db.approve(film_id, record["keywords"], record["keywords_en"], actor=actor)
     return record
+
+
+# ------------------------------------------------------- programme description
+
+# Keyword tagging is a cheap classification job; a programme note is prose the
+# team will sign their name under, so it gets the stronger model.
+DESCRIBE_MODEL = "anthropic/claude-sonnet-5"
+
+DESCRIBE_SYSTEM = (
+    "You write programme notes for a Lithuanian short film agency. "
+    "You write for the audience of a cinema or festival: plain, concrete, "
+    "unhurried. Short declarative sentences. Name real things from the films - "
+    "the sea, a summer garden, a night shift - rather than abstractions about "
+    "the human condition. Never use the vocabulary of a press release: no "
+    "tapestry, journey, exploration, delve, resonate, evoke, poignant, "
+    "meditative, curated selection, invites viewers, lingers long after. "
+    "You only use what the synopses actually say - you never invent plot "
+    "points, awards or intentions. You answer with prose only, no headings, no "
+    "lists, no quotation marks around the text."
+)
+
+DESCRIBE_LANGUAGE = {
+    "lt": "Write in Lithuanian.",
+    "en": "Write in English.",
+}
+
+
+def build_description_prompt(films: Sequence, title: Optional[str],
+                             lang: str) -> str:
+    """Everything the model is allowed to know about the programme."""
+    blocks = []
+    for n, film in enumerate(films, 1):
+        bits = [f"{n}. {film.title}"]
+        if film.title_en and film.title_en != film.title:
+            bits.append(f"   English title: {film.title_en}")
+        if film.director:
+            bits.append(f"   Director: {film.director}")
+        for label, value in (("Genre", film.genre), ("Year", film.year),
+                             ("Running time", film.duration_min)):
+            if value:
+                bits.append(f"   {label}: {value}")
+        synopsis = film.synopsis_en or film.synopsis
+        if synopsis:
+            bits.append(f"   Synopsis: {synopsis}")
+        if film.keywords:
+            bits.append(f"   Keywords: {', '.join(film.keywords)}")
+        blocks.append("\n".join(bits))
+
+    named = f' The programme is called "{title}".' if title else ""
+    return (
+        "Films in the programme:\n\n" + "\n\n".join(blocks)
+        + f"\n\nWrite one paragraph introducing this programme as a whole.{named}"
+        " Say what these films have in common - the places, the moods, the"
+        " questions they share - and what a viewer is in for across the whole"
+        " screening. Name the number of films. Do not summarise them one by one"
+        " and do not list titles; the film descriptions follow underneath."
+        " Four to seven sentences.\n"
+        + DESCRIBE_LANGUAGE.get(lang, DESCRIBE_LANGUAGE["en"])
+    )
+
+
+def describe_programme(films: Sequence, title: Optional[str] = None,
+                       lang: str = "lt", api_key: Optional[str] = None,
+                       model: str = DESCRIBE_MODEL) -> str:
+    """Draft the introductory paragraph for a programme. Editorial, not final."""
+    if not films:
+        raise EnrichError("The programme has no films to describe.")
+    api_key = resolve_api_key(api_key)
+
+    payload = {
+        "model": model,
+        "temperature": 0.6,
+        "max_tokens": 600,
+        "messages": [
+            {"role": "system", "content": DESCRIBE_SYSTEM},
+            {"role": "user",
+             "content": build_description_prompt(films, title, lang)},
+        ],
+    }
+    headers = dict(HEADERS)
+    headers["Authorization"] = f"Bearer {api_key}"
+
+    try:
+        r = requests.post(API_URL, json=payload, headers=headers, timeout=TIMEOUT)
+    except requests.RequestException as e:
+        raise EnrichError(f"OpenRouter is not reachable: {e}")
+    if r.status_code == 401:
+        raise EnrichError("OpenRouter rejected the API key (401).")
+    if not r.ok:
+        raise EnrichError(f"OpenRouter returned HTTP {r.status_code}.")
+
+    try:
+        text = r.json()["choices"][0]["message"]["content"]
+    except (ValueError, KeyError, IndexError):
+        raise EnrichError("OpenRouter returned an unexpected response.")
+
+    text = re.sub(r"```[a-z]*\s*|\s*```", "", text).strip()
+    return text.strip('"').strip()
