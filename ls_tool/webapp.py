@@ -103,6 +103,10 @@ def create_app() -> Flask:
         endpoint = request.endpoint or ""
         if endpoint in auth.PUBLIC_ENDPOINTS:
             return None
+        if request.endpoint is None:
+            # Unknown path: let Flask answer 404. Redirecting here would loop
+            # forever if the host ever rewrote the path out from under us.
+            return None
         user = auth.current_user()
         if user is None:
             return redirect(url_for("login", next=request.full_path))
