@@ -55,6 +55,20 @@
   button:hover,.btn:hover{background:#333}
   .btn.ghost{background:#fff;color:#111;border:1px solid var(--line)}
   .btn.ghost:hover{background:#f0f0f0}
+  /* Field help: a hoverable "i" that also opens on keyboard focus and on tap. */
+  .info{position:relative;display:inline-flex;align-items:center;
+        justify-content:center;width:14px;height:14px;margin-left:5px;padding:0;
+        border:1px solid var(--line);border-radius:50%;background:#fff;
+        color:var(--muted);font:600 10px/1 inherit;cursor:help;
+        vertical-align:middle;text-transform:none}
+  .info:hover,.info:focus{background:#111;color:#fff;border-color:#111}
+  .info .bubble{position:absolute;left:50%;bottom:calc(100% + 7px);
+                transform:translateX(-50%);width:max-content;max-width:260px;
+                padding:8px 10px;border-radius:6px;background:#111;color:#fff;
+                font:400 11.5px/1.45 inherit;letter-spacing:0;text-align:left;
+                text-transform:none;opacity:0;visibility:hidden;
+                transition:opacity .12s;z-index:20;pointer-events:none}
+  .info:hover .bubble,.info:focus .bubble{opacity:1;visibility:visible}
   button.linklike{background:none;border:0;padding:0 0 0 8px;font:inherit;
                   font-weight:400;color:var(--accent);cursor:pointer;
                   text-decoration:underline}

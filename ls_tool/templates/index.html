@@ -2,6 +2,9 @@
 {% set page = 'programme' %}
 {% block title %}{{ ui('p_title') }} · Lithuanian Shorts{% endblock %}
 
+{% macro info(key) %}<button type="button" class="info" tabindex="0"
+  aria-label="{{ ui(key) }}">i<span class="bubble">{{ ui(key) }}</span></button>{% endmacro %}
+
 {% block body %}
 <h1>{{ ui('p_title') }}</h1>
 <p class="lede">{{ ui('p_lede', n=catalog|length) }}</p>
@@ -10,17 +13,17 @@
 <div class="card">
   <div class="grid g2">
     <div>
-      <label for="title">{{ ui('p_name') }}</label>
+      <label for="title">{{ ui('p_name') }} {{ info('h_name') }}</label>
       <input type="text" id="title" name="title"
              value="{{ form.get('title','') }}" placeholder="{{ ui('p_name_ph') }}">
     </div>
     <div>
-      <label for="occasion">{{ ui('p_occasion') }}</label>
+      <label for="occasion">{{ ui('p_occasion') }} {{ info('h_occasion') }}</label>
       <input type="text" id="occasion" name="occasion"
              value="{{ form.get('occasion','') }}" placeholder="{{ ui('p_occasion_ph') }}">
     </div>
     <div>
-      <label for="rating">{{ ui('p_rating') }}</label>
+      <label for="rating">{{ ui('p_rating') }} {{ info('h_rating') }}</label>
       {% set picked = form.get('rating_custom','') if form.get('rating') == 'custom'
                       else form.get('rating','') %}
       {% set known = ['V', 'N-7', 'N-13', 'N-16', 'N-18'] %}
@@ -38,7 +41,7 @@
              placeholder="{{ ui('p_rating_ph') }}">
     </div>
     <div>
-      <label for="lang">{{ ui('p_doclang') }}</label>
+      <label for="lang">{{ ui('p_doclang') }} {{ info('h_doclang') }}</label>
       <select id="lang" name="lang">
         <option value="lt" {{ 'selected' if form.get('lang', ui_lang)=='lt' }}>Lietuvių</option>
         <option value="en" {{ 'selected' if form.get('lang', ui_lang)=='en' }}>English</option>
@@ -48,7 +51,7 @@
   </div>
 
   <div>
-    <label for="intro">{{ ui('p_intro') }}</label>
+    <label for="intro">{{ ui('p_intro') }} {{ info('h_intro') }}</label>
     <textarea id="intro" name="intro" rows="4"
               placeholder="{{ ui('p_intro_ph') }}">{{ form.get('intro','') }}</textarea>
   </div>
@@ -56,7 +59,7 @@
   <h2>{{ ui('p_theme') }}</h2>
   <div class="grid g2">
     <div>
-      <label>{{ ui('p_keywords') }}</label>
+      <label>{{ ui('p_keywords') }} {{ info('h_keywords') }}</label>
       <div class="kwbox">
         {% for kw, n in keyword_counts.items() %}
           <label class="chk">
@@ -70,18 +73,18 @@
     </div>
     <div>
       <div>
-        <label for="query">{{ ui('p_query') }}</label>
+        <label for="query">{{ ui('p_query') }} {{ info('h_query') }}</label>
         <input type="text" id="query" name="query" value="{{ form.get('query','') }}"
                placeholder="{{ ui('p_query_ph') }}">
       </div>
       <div style="margin-top:14px">
-        <label for="keywords_extra">{{ ui('p_extra_kw') }}</label>
+        <label for="keywords_extra">{{ ui('p_extra_kw') }} {{ info('h_extra_kw') }}</label>
         <input type="text" id="keywords_extra" name="keywords_extra"
                value="{{ form.get('keywords_extra','') }}"
                placeholder="{{ ui('p_extra_kw_ph') }}">
       </div>
       <div style="margin-top:14px">
-        <label>{{ ui('p_genre') }}</label>
+        <label>{{ ui('p_genre') }} {{ info('h_genre') }}</label>
         {% set picked_genres = form.getlist('genres') %}
         <div class="kwbox" style="max-height:none">
           <label class="chk">
@@ -105,34 +108,34 @@
   <h2>{{ ui('p_limits') }}</h2>
   <div class="grid g3">
     <div>
-      <label for="min_films">{{ ui('p_films_from') }}</label>
+      <label for="min_films">{{ ui('p_films_from') }} {{ info('h_films_from') }}</label>
       <input type="number" id="min_films" name="min_films" min="1" max="20"
              value="{{ form.get('min_films','5') }}">
     </div>
     <div>
-      <label for="max_films">{{ ui('p_films_to') }}</label>
+      <label for="max_films">{{ ui('p_films_to') }} {{ info('h_films_to') }}</label>
       <input type="number" id="max_films" name="max_films" min="1" max="20"
              value="{{ form.get('max_films','6') }}">
     </div>
     <div>
-      <label for="max_minutes">{{ ui('p_max_minutes') }}</label>
+      <label for="max_minutes">{{ ui('p_max_minutes') }} {{ info('h_max_minutes') }}</label>
       <input type="number" id="max_minutes" name="max_minutes" min="10" max="400"
              value="{{ form.get('max_minutes','90') }}">
     </div>
     <div>
-      <label for="year_from">{{ ui('p_year_from') }}</label>
+      <label for="year_from">{{ ui('p_year_from') }} {{ info('h_year_from') }}</label>
       <input type="number" id="year_from" name="year_from"
              min="{{ year_min }}" max="{{ year_max }}" placeholder="{{ year_min }}"
              value="{{ form.get('year_from','') }}">
     </div>
     <div>
-      <label for="year_to">{{ ui('p_year_to') }}</label>
+      <label for="year_to">{{ ui('p_year_to') }} {{ info('h_year_to') }}</label>
       <input type="number" id="year_to" name="year_to"
              min="{{ year_min }}" max="{{ year_max }}" placeholder="{{ year_max }}"
              value="{{ form.get('year_to','') }}">
     </div>
     <div>
-      <label for="n_proposals">{{ ui('p_variants') }}</label>
+      <label for="n_proposals">{{ ui('p_variants') }} {{ info('h_variants') }}</label>
       {% set chosen_n = form.get('n_proposals', 'all') %}
       <select id="n_proposals" name="n_proposals">
         <option value="all" {{ 'selected' if chosen_n == 'all' }}>{{ ui('p_variants_all') }}</option>
@@ -151,20 +154,22 @@
       <input type="checkbox" name="licensed_only" {{ 'checked' if form.get('licensed_only') }}>
       {{ ui('p_licensed_only') }}
     </label>
+    {{ info('h_licensed_only') }}
     <label class="chk">
       <input type="checkbox" name="strict_keywords" {{ 'checked' if form.get('strict_keywords') }}>
       {{ ui('p_strict_kw') }}
     </label>
+    {{ info('h_strict_kw') }}
   </div>
 
   <div class="grid g2" style="margin-top:16px">
     <div>
-      <label for="pin_ids">{{ ui('p_pin') }}</label>
+      <label for="pin_ids">{{ ui('p_pin') }} {{ info('h_pin') }}</label>
       <input type="text" id="pin_ids" name="pin_ids" value="{{ form.get('pin_ids','') }}"
              placeholder="{{ ui('p_pin_ph') }}">
     </div>
     <div>
-      <label for="exclude_ids">{{ ui('p_exclude') }}</label>
+      <label for="exclude_ids">{{ ui('p_exclude') }} {{ info('h_exclude') }}</label>
       <input type="text" id="exclude_ids" name="exclude_ids"
              value="{{ form.get('exclude_ids','') }}">
     </div>
@@ -204,7 +209,7 @@
       </div>
       <form class="dl" method="post" data-token="{{ token }}" data-option="{{ loop.index }}"
             action="{{ url_for('download', token=token, fmt='pdf', option=loop.index) }}">
-        <label for="intro-{{ loop.index }}" style="margin-top:10px">{{ ui('p_intro') }}</label>
+        <label for="intro-{{ loop.index }}" style="margin-top:10px">{{ ui('p_intro') }} {{ info('h_intro_option') }}</label>
         <textarea id="intro-{{ loop.index }}" name="intro" rows="4"
                   placeholder="{{ ui('p_intro_ph') }}">{{ req.intro or '' }}</textarea>
         <div class="actions" style="margin:8px 0 0">

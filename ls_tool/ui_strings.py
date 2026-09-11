@@ -91,6 +91,53 @@ STRINGS = {
         "p_fail": "Nepavyko sudaryti programos.",
         "p_fail_body": "Pagal šiuos kriterijus rasta {n} tinkamų filmų. Pabandykite "
                        "atlaisvinti filtrus arba padidinti trukmės ribą.",
+        # --- field help, shown behind the "i" next to each label
+        "h_name": "Programos pavadinimas. Jis atsiduria dokumento viršuje ir "
+                  "failo pavadinime. Paliktas tuščias - dokumentas vadinsis "
+                  "\u201eFilmų programos pasiūlymas\u201c.",
+        "h_occasion": "Renginys, kuriam programa skirta. Naujame PDF nerodomas - "
+                      "tai tik jūsų žyma pasiūlymams atskirti.",
+        "h_rating": "Amžiaus cenzas, spausdinamas po trukme. Pasirinkite iš "
+                    "sąrašo arba \u201eKita...\u201c ir įrašykite savo.",
+        "h_doclang": "Kokia kalba rengiamas dokumentas: lietuviški pavadinimai "
+                     "ir anotacijos ar angliški. Sąsajos kalba nesikeičia.",
+        "h_intro": "Įžanginė pastraipa apie visą programą. Galite įrašyti čia "
+                   "arba vėliau, prie pasirinkto varianto, kur yra ir AI "
+                   "juodraščio mygtukas.",
+        "h_intro_option": "Ši pastraipa atsiduria dokumento pradžioje. "
+                          "\u201eParašyti aprašymą (AI)\u201c parengia "
+                          "juodraštį pagal šio varianto filmus - perskaitykite "
+                          "ir pataisykite prieš siųsdami.",
+        "h_keywords": "Programos tema. Pažymėti raktažodžiai filmų neatmeta, o "
+                      "kelia juos aukščiau atrankoje. Skaičius skliaustuose - "
+                      "kiek archyvo filmų tuo pažymėti.",
+        "h_query": "Paieška filmo tekste: pavadinime, anotacijoje, žanre, "
+                   "režisieriaus pavardėje, šalyje, raktažodžiuose. Tai griežtas "
+                   "filtras ir turi sutapti VISI įrašyti žodžiai, todėl keli "
+                   "žodžiai greitai nepalieka nė vieno filmo.",
+        "h_extra_kw": "Raktažodžiai, kurių nėra sąraše. Rašomi kableliais, "
+                      "veikia taip pat kaip pažymėtieji.",
+        "h_genre": "Palikite \u201eVisi žanrai\u201c ir programa gali juos "
+                   "maišyti. Pažymėjus kelis - filmai bus tik iš jų.",
+        "h_films_from": "Mažiausias filmų skaičius programoje. Jei tiek "
+                        "nesusidaro, dokumente atsiranda pastaba.",
+        "h_films_to": "Didžiausias filmų skaičius programoje.",
+        "h_max_minutes": "Bendros trukmės riba minutėmis. Ilgesni filmai iškrenta "
+                         "iš karto, o programa renkama taip, kad kuo geriau "
+                         "užpildytų šį laiką.",
+        "h_year_from": "Ankstyviausi filmo metai. Tuščia - nuo seniausio archyve.",
+        "h_year_to": "Vėliausi filmo metai. Tuščia - iki naujausio archyve.",
+        "h_variants": "Kiek skirtingų programos variantų parodyti. "
+                      "\u201eVisi\u201c - tiek, kiek pavyks sudaryti (iki 8).",
+        "h_licensed_only": "Palikti tik filmus su pasirašyta licencine sutartimi. "
+                           "Licencijų lentelė kol kas tuščia, todėl pažymėjus "
+                           "greičiausiai neliks nė vieno filmo.",
+        "h_strict_kw": "Į atranką patenka tik filmai, turintys bent vieną iš "
+                       "pažymėtų raktažodžių. Be varnelės raktažodžiai tik kelia "
+                       "filmus aukščiau.",
+        "h_pin": "Filmų ID, kurie privalo būti programoje. Jiems kiti filtrai "
+                 "netaikomi. ID rasite archyvo puslapyje.",
+        "h_exclude": "Filmų ID, kurių į programą neįtraukti. Kableliais.",
         "p_proposals": "Pasiūlymai",
         "p_download_hint": "Atsisiųskite tą variantą, kurį pasirinkote - į dokumentą pateks tik jis.",
         "p_describe": "Parašyti aprašymą (AI)",
@@ -352,6 +399,57 @@ STRINGS = {
         "p_fail": "Could not build a programme.",
         "p_fail_body": "These criteria matched {n} eligible films. Try relaxing the "
                        "filters or raising the running-time limit.",
+        # --- field help, shown behind the "i" next to each label
+        "h_name": "The name of the programme. It heads the document and names "
+                  "the file. Left empty, the document is called \u201cFilm "
+                  "Programme Proposal\u201d.",
+        "h_occasion": "The event this programme is for. It does not appear in "
+                      "the new PDF - it is your own label for telling proposals "
+                      "apart.",
+        "h_rating": "The age rating printed under the running time. Pick one "
+                    "from the list, or \u201cOther...\u201d to type your own.",
+        "h_doclang": "Which language the document is written in: Lithuanian "
+                     "titles and synopses, or English ones. The language of this "
+                     "interface does not change.",
+        "h_intro": "The opening paragraph about the programme as a whole. Write "
+                   "it here, or later on the option you pick, where the AI draft "
+                   "button also lives.",
+        "h_intro_option": "This paragraph opens the document. \u201cDraft "
+                          "description (AI)\u201d writes a first version from "
+                          "the films in this option - read and edit it before "
+                          "the document goes anywhere.",
+        "h_keywords": "The theme of the programme. Ticked keywords do not "
+                      "exclude films, they pull matching ones up the ranking. "
+                      "The number is how many archive films carry that keyword.",
+        "h_query": "Searches a film's text: title, synopsis, genre, director, "
+                   "country, keywords. This is a hard filter and ALL the words "
+                   "you type must appear, so two or three words can easily leave "
+                   "nothing to choose from.",
+        "h_extra_kw": "Keywords that are not in the list. Comma separated, and "
+                      "they work exactly like the ticked ones.",
+        "h_genre": "Leave \u201cAll genres\u201d and the programme may mix "
+                   "them. Tick some and films come only from those.",
+        "h_films_from": "The fewest films the programme may contain. If that many "
+                        "cannot be found, the document says so in a note.",
+        "h_films_to": "The most films the programme may contain.",
+        "h_max_minutes": "The running-time limit in minutes. Longer films drop "
+                         "out immediately, and the programme is built to use as "
+                         "much of this slot as it can.",
+        "h_year_from": "Earliest year of production. Empty means the oldest film "
+                       "in the archive.",
+        "h_year_to": "Latest year of production. Empty means the newest film in "
+                     "the archive.",
+        "h_variants": "How many different programmes to propose. \u201cAll\u201d "
+                      "gives every one that can be built, up to 8.",
+        "h_licensed_only": "Keep only films with a signed licence agreement. The "
+                           "licensing table is empty at the moment, so ticking "
+                           "this will probably leave no films at all.",
+        "h_strict_kw": "Only films carrying at least one of the ticked keywords "
+                       "are considered. Without this, keywords merely pull films "
+                       "up the ranking.",
+        "h_pin": "Film IDs that must be in the programme. The other filters do "
+                 "not apply to them. IDs are on the archive page.",
+        "h_exclude": "Film IDs to keep out of the programme. Comma separated.",
         "p_proposals": "Proposals",
         "p_download_hint": "Download the option you picked - the document contains only that programme.",
         "p_describe": "Draft description (AI)",

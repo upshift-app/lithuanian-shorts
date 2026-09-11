@@ -269,9 +269,10 @@ def approve(film_id: int, keywords: Sequence[str], keyword_map: Dict[str, str],
 
 # ------------------------------------------------------- programme description
 
-# Keyword tagging is a cheap classification job; a programme note is prose the
-# team will sign their name under, so it gets the stronger model.
-DESCRIBE_MODEL = "anthropic/claude-sonnet-5"
+# Same cheap model as the keyword tagging: a programme note is a first draft
+# that a human edits, and the strong models cost two orders of magnitude more
+# per description for prose nobody ships unread.
+DESCRIBE_MODEL = DEFAULT_MODEL
 
 DESCRIBE_SYSTEM = (
     "You write programme notes for a Lithuanian short film agency. "
