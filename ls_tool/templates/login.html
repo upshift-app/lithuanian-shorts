@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="{{ ui_lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ ui('login_title') }} · Lithuanian Shorts</title>
+<style>
+  :root{--ink:#141414;--muted:#6b6b6b;--line:#e2e2e2;--bg:#fafafa;--accent:#c8102e}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.55 "Segoe UI",-apple-system,system-ui,sans-serif;
+       display:flex;align-items:flex-start;justify-content:center;min-height:100vh}
+  .card{background:#fff;border:1px solid var(--line);border-radius:8px;
+        padding:30px 32px;width:100%;max-width:380px;margin-top:14vh}
+  .brand{font-weight:700;letter-spacing:.14em;font-size:11px;
+         text-transform:uppercase;color:var(--muted)}
+  h1{font-size:21px;margin:6px 0 4px}
+  .lede{color:var(--muted);font-size:13px;margin:0 0 22px}
+  label{display:block;font-size:11.5px;font-weight:600;text-transform:uppercase;
+        letter-spacing:.05em;color:var(--muted);margin-bottom:5px}
+  input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:5px;
+        font:inherit;background:#fff;margin-bottom:16px}
+  input:focus{outline:2px solid #111;outline-offset:-1px}
+  button{width:100%;background:#111;color:#fff;border:0;border-radius:5px;
+         padding:11px 18px;font:inherit;font-weight:600;cursor:pointer}
+  button:hover{background:#333}
+  .err{border-left:3px solid var(--accent);background:#fff0f2;padding:10px 13px;
+       border-radius:0 5px 5px 0;margin-bottom:16px;font-size:13px}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:16px;text-align:center}
+</style>
+</head>
+<body>
+<form class="card" method="post">
+  <div class="brand">Lithuanian Shorts</div>
+  <h1>{{ ui('login_title') }}</h1>
+  <p class="lede">{{ ui('login_lede') }}</p>
+
+  {% if error %}<div class="err">{{ error }}</div>{% endif %}
+
+  <input type="hidden" name="next" value="{{ next }}">
+
+  <label for="email">{{ ui('login_email') }}</label>
+  <input id="email" name="email" type="email" autocomplete="username"
+         value="{{ email }}" required autofocus>
+
+  <label for="password">{{ ui('login_password') }}</label>
+  <input id="password" name="password" type="password"
+         autocomplete="current-password" required>
+
+  <button type="submit">{{ ui('login_submit') }}</button>
+  <p class="hint">{{ ui('login_admin_note') }}</p>
+</form>
+</body>
+</html>

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% set page = 'films' %}
+{% set heading = ui('nf_edit_title') if editing else ui('nf_add_title') %}
+{% block title %}{{ heading }} · Lithuanian Shorts{% endblock %}
+
+{% block body %}
+<h1>{{ heading }}</h1>
+<p class="lede">{{ ui('nf_lede') }}</p>
+
+{% if errors %}
+  <div class="err">
+    {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+  </div>
+{% endif %}
+
+<form method="post">
+<div class="card">
+  <h2 style="margin-top:0">{{ ui('nf_s_basic') }}</h2>
+  <div class="grid g2">
+    <div>
+      <label for="title">{{ ui('nf_f_title') }}</label>
+      <input type="text" id="title" name="title" required
+             value="{{ form.get('title','') }}">
+    </div>
+    <div>
+      <label for="year">{{ ui('nf_f_year') }}</label>
+      <input type="number" id="year" name="year" min="1900" max="2100"
+             value="{{ form.get('year','') }}">
+    </div>
+    <div>
+      <label for="duration_min">{{ ui('nf_f_duration') }}</label>
+      <input type="number" id="duration_min" name="duration_min"
+             step="0.1" min="0.1" value="{{ form.get('duration_min','') }}">
+      <div class="hint">{{ ui('nf_dur_hint') }}</div>
+    </div>
+    <div>
+      <label for="genre">{{ ui('nf_f_genre') }}</label>
+      <input type="text" id="genre" name="genre" list="genre-list"
+             value="{{ form.get('genre','') }}">
+      <datalist id="genre-list">
+        {% for g in genres %}<option value="{{ g }}">{% endfor %}
+      </datalist>
+    </div>
+    <div>
+      <label for="country">{{ ui('nf_f_country') }}</label>
+      <input type="text" id="country" name="country" value="{{ form.get('country','') }}">
+    </div>
+    <div>
+      <label for="language">{{ ui('nf_f_language') }}</label>
+      <input type="text" id="language" name="language" value="{{ form.get('language','') }}">
+    </div>
+  </div>
+
+  <div style="margin-top:16px">
+    <label for="keywords">{{ ui('nf_f_keywords') }}</label>
+    <input type="text" id="keywords" name="keywords" list="kw-list"
+           value="{{ form.get('keywords','') }}">
+    <datalist id="kw-list">
+      {% for k in all_keywords %}<option value="{{ k }}">{% endfor %}
+    </datalist>
+    <div class="hint">{{ ui('nf_kw_hint') }}</div>
+  </div>
+
+  <div style="margin-top:16px">
+    <label for="url">{{ ui('nf_f_url') }}</label>
+    <input type="text" id="url" name="url" value="{{ form.get('url','') }}">
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">{{ ui('nf_s_text') }}</h2>
+  <textarea name="synopsis" rows="4">{{ form.get('synopsis','') }}</textarea>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">{{ ui('nf_s_crew') }}</h2>
+  <div class="grid g2">
+    <div>
+      <label for="director">{{ ui('nf_f_director') }}</label>
+      <input type="text" id="director" name="director" value="{{ form.get('director','') }}">
+    </div>
+    <div>
+      <label for="producer">{{ ui('nf_f_producer') }}</label>
+      <input type="text" id="producer" name="producer" value="{{ form.get('producer','') }}">
+    </div>
+    <div>
+      <label for="production_company">{{ ui('nf_f_company') }}</label>
+      <input type="text" id="production_company" name="production_company"
+             value="{{ form.get('production_company','') }}">
+    </div>
+    <div>
+      <label for="distributor">{{ ui('nf_f_distributor') }}</label>
+      <input type="text" id="distributor" name="distributor"
+             value="{{ form.get('distributor','') }}">
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">{{ ui('nf_s_en') }}</h2>
+  <div class="grid g2">
+    <div>
+      <label for="title_en">{{ ui('nf_f_title_en') }}</label>
+      <input type="text" id="title_en" name="title_en" value="{{ form.get('title_en','') }}">
+    </div>
+    <div>
+      <label for="genre_en">{{ ui('nf_f_genre_en') }}</label>
+      <input type="text" id="genre_en" name="genre_en" value="{{ form.get('genre_en','') }}">
+    </div>
+    <div>
+      <label for="country_en">{{ ui('nf_f_country_en') }}</label>
+      <input type="text" id="country_en" name="country_en"
+             value="{{ form.get('country_en','') }}">
+    </div>
+    <div>
+      <label for="language_en">{{ ui('nf_f_language_en') }}</label>
+      <input type="text" id="language_en" name="language_en"
+             value="{{ form.get('language_en','') }}">
+    </div>
+  </div>
+
+  <div style="margin-top:16px">
+    <label for="keywords_en">{{ ui('nf_f_keywords_en') }}</label>
+    <input type="text" id="keywords_en" name="keywords_en"
+           value="{{ form.get('keywords_en','') }}">
+    <div class="hint">{{ ui('nf_kw_hint') }}</div>
+  </div>
+
+  <div style="margin-top:16px">
+    <label for="synopsis_en">{{ ui('nf_f_synopsis_en') }}</label>
+    <textarea id="synopsis_en" name="synopsis_en" rows="4">{{ form.get('synopsis_en','') }}</textarea>
+  </div>
+
+  <div style="margin-top:16px">
+    <label for="url_en">{{ ui('nf_f_url_en') }}</label>
+    <input type="text" id="url_en" name="url_en" value="{{ form.get('url_en','') }}">
+  </div>
+</div>
+
+<div class="actions">
+  <button type="submit">{{ ui('nf_save') }}</button>
+  <a class="btn ghost" href="{{ url_for('films') }}">{{ ui('nf_cancel') }}</a>
+</div>
+</form>
+{% endblock %}

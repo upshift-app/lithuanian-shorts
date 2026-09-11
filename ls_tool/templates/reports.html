@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% set page = 'reports' %}
+{% block title %}{{ ui('r_title') }} · Lithuanian Shorts{% endblock %}
+
+{% block body %}
+<h1>{{ ui('r_title') }}</h1>
+<p class="lede">{{ ui('r_lede') }}</p>
+
+{% if error %}
+  <div class="err"><strong>{{ ui('r_sheet_error') }}</strong> {{ error }}</div>
+{% endif %}
+
+{% if not has_rows %}
+  <div class="card">
+    <h3>{{ ui('r_empty') }}</h3>
+    <p class="muted" style="margin:6px 0 0">{{ ui('r_empty_body') }}</p>
+    <p class="small muted" style="margin:8px 0 0">{{ ui('r_fee_note') }}</p>
+    <div class="actions">
+      <a class="btn" href="{{ url_for('screening_log') }}">{{ ui('s_add') }}</a>
+    </div>
+  </div>
+{% else %}
+
+<form method="post">
+<div class="card">
+  <div class="grid g2">
+    <div>
+      <label for="title">{{ ui('r_name') }}</label>
+      <input type="text" id="title" name="title" value="{{ form.get('title','') }}"
+             placeholder="{{ ui('r_title') }}">
+    </div>
+    <div>
+      <label for="recipient">{{ ui('r_recipient') }}</label>
+      <input type="text" id="recipient" name="recipient"
+             value="{{ form.get('recipient','') }}" placeholder="{{ ui('r_recipient_ph') }}">
+    </div>
+    <div>
+      <label for="lang">{{ ui('p_doclang') }}</label>
+      <select id="lang" name="lang">
+        <option value="lt" {{ 'selected' if form.get('lang', ui_lang)=='lt' }}>Lietuvių</option>
+        <option value="en" {{ 'selected' if form.get('lang', ui_lang)=='en' }}>English</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid g3" style="margin-top:16px">
+    <div>
+      <label for="director">{{ ui('r_director') }}</label>
+      <select id="director" name="director">
+        <option value="">{{ ui('r_all') }}</option>
+        {% for d in directors %}
+          <option value="{{ d.value }}" data-films="{{ d.film_ids|join(',') }}"
+                  {{ 'selected' if form.get('director')==d.value }}>
+            {{ d.label }}{% if d.combo %} ({{ ui('r_dir_combo') }}){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="date_from">{{ ui('r_date_from') }}</label>
+      <input type="date" id="date_from" name="date_from" value="{{ form.get('date_from','') }}">
+    </div>
+    <div>
+      <label for="date_to">{{ ui('r_date_to') }}</label>
+      <input type="date" id="date_to" name="date_to" value="{{ form.get('date_to','') }}">
+    </div>
+  </div>
+
+  <div style="margin-top:16px">
+    <div class="row" style="justify-content:space-between;align-items:baseline">
+      <label style="margin:0">{{ ui('r_films') }}</label>
+      <span class="small">
+        <a href="#" id="films-all">{{ ui('r_pick_all') }}</a> ·
+        <a href="#" id="films-none">{{ ui('r_pick_none') }}</a>
+      </span>
+    </div>
+    {% set picked_films = form.getlist('film_ids') %}
+    <div class="kwbox" id="films-box">
+      {% for f in sheet_films %}
+        <label class="chk film-row" data-film="{{ f.id }}">
+          <input type="checkbox" name="film_ids" value="{{ f.id }}"
+                 {{ 'checked' if f.id|string in picked_films }}>
+          {{ ftitle(f) }}
+          <span class="muted small">
+            {%- if f.year %} ({{ f.year }}){% endif %}
+            {%- if f.director %} · {{ ui('dir_prefix') }} {{ f.director }}{% endif %}
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+    <div class="hint">{{ ui('r_films_hint') }}</div>
+    <div class="hint" id="films-hidden-note" hidden></div>
+  </div>
+
+  <div class="actions">
+    <button type="submit">{{ ui('r_submit') }}</button>
+  </div>
+</div>
+</form>
+
+{% if submitted %}
+  {% if not reports %}
+    <div class="err">{{ ui('r_none') }}</div>
+  {% else %}
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h2 style="margin:6px 0">{{ ui('r_results') }}</h2>
+      <div class="actions" style="margin:0">
+        <a class="btn" href="{{ url_for('download_report', token=token, fmt='pdf') }}">{{ ui('download_pdf') }}</a>
+        <a class="btn ghost" href="{{ url_for('download_report', token=token, fmt='docx') }}">{{ ui('download_word') }}</a>
+      </div>
+    </div>
+
+    <div class="grid g3" style="margin-bottom:18px">
+      <div class="stat"><div class="v">{{ totals.films }}</div><div class="k">{{ ui('th_films') }}</div></div>
+      <div class="stat"><div class="v">{{ totals.events }}</div><div class="k">{{ ui('th_events') }}</div></div>
+      <div class="stat"><div class="v">{{ totals.screenings }}</div><div class="k">{{ ui('th_screenings') }}</div></div>
+      <div class="stat"><div class="v">{{ totals.revenue|eur }}</div><div class="k">{{ ui('th_revenue') }}</div></div>
+    </div>
+
+    {% for r in reports %}
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h3>{{ r.display_title(ui_lang) }}</h3>
+        <span class="muted small">
+          {% if r.director %}{{ ui('dir_prefix') }} {{ r.director }} · {% endif %}
+          {% if r.year %}{{ r.year }} · {% endif %}{{ r.duration_min|minutes }}
+        </span>
+      </div>
+      <p class="muted small" style="margin:2px 0 10px">
+        {{ ui('r_screenings_events', s=r.total_screenings, e=r.total_events) }}
+        {% if r.countries %} · {{ r.countries|join(', ') }}{% endif %}
+        {% if r.period %} · {{ r.period }}{% endif %}
+      </p>
+      <table>
+        <thead>
+          <tr><th>{{ ui('th_date') }}</th><th>{{ ui('th_event') }}</th>
+              <th>{{ ui('th_venue') }}</th>
+              <th class="num">{{ ui('th_screenings') }}</th>
+              <th class="num">{{ ui('th_revenue') }}</th></tr>
+        </thead>
+        <tbody>
+        {% for s in r.screenings %}
+          <tr>
+            <td>{{ s.date_label or '-' }}</td>
+            <td>{{ s.event or '-' }}
+              {% if s.programme %}<div class="muted small">{{ s.programme }}</div>{% endif %}</td>
+            <td>{{ s.place or '-' }}</td>
+            <td class="num">{{ s.screenings }}</td>
+            <td class="num">{{ s.revenue|eur }}</td>
+          </tr>
+        {% endfor %}
+          <tr class="total">
+            <td></td><td></td><td>{{ ui('th_total') }}</td>
+            <td class="num">{{ r.total_screenings }}</td>
+            <td class="num">{{ r.total_revenue|eur }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  {% endif %}
+{% endif %}
+{% endif %}
+
+<script>
+// Picking a director narrows the film list to that director's films, so the
+// two filters can't contradict each other. A hidden film is also unticked, or
+// it would silently stay in the report.
+(function () {
+  var director = document.getElementById('director');
+  var box = document.getElementById('films-box');
+  if (!director || !box) return;
+
+  var rows = Array.prototype.slice.call(box.querySelectorAll('.film-row'));
+  var note = document.getElementById('films-hidden-note');
+  var noteTemplate = {{ ui('r_films_hidden', n='__N__', total='__T__')|tojson }};
+
+  function applyFilter() {
+    var opt = director.options[director.selectedIndex];
+    var allowed = (opt && opt.dataset.films) ? opt.dataset.films.split(',') : null;
+    var shown = 0;
+
+    rows.forEach(function (row) {
+      var visible = !allowed || allowed.indexOf(row.dataset.film) !== -1;
+      row.hidden = !visible;
+      if (visible) shown++;
+      else row.querySelector('input').checked = false;
+    });
+
+    if (allowed && note) {
+      note.textContent = noteTemplate
+        .replace('__N__', shown).replace('__T__', rows.length);
+      note.hidden = false;
+    } else if (note) {
+      note.hidden = true;
+    }
+  }
+
+  director.addEventListener('change', applyFilter);
+  applyFilter();
+
+  function setAll(state) {
+    return function (e) {
+      e.preventDefault();
+      rows.forEach(function (row) {
+        if (!row.hidden) row.querySelector('input').checked = state;
+      });
+    };
+  }
+  document.getElementById('films-all').addEventListener('click', setAll(true));
+  document.getElementById('films-none').addEventListener('click', setAll(false));
+})();
+</script>
+{% endblock %}

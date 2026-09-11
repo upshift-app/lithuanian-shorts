@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local data and generated documents - the archive lives in Supabase now
+data/
+output/
+
+# Secrets
+.env
+.env.local
+
+.vercel/

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% set page = 'screenings' %}
+{% block title %}{{ ui('s_title') }} · Lithuanian Shorts{% endblock %}
+
+{% block body %}
+<h1>{{ ui('s_title') }}</h1>
+<p class="lede">{{ ui('s_lede') }}</p>
+
+{% if error %}
+  <div class="err"><strong>{{ ui('r_sheet_error') }}</strong> {{ error }}</div>
+{% endif %}
+{% if notice %}
+  <div class="note">{{ ui(notice) }}</div>
+{% endif %}
+{% if errors %}
+  <div class="err">
+    {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+  </div>
+{% endif %}
+
+<form method="post">
+<div class="card">
+  <h3>{{ ui('s_add') }}</h3>
+  <div class="grid g2" style="margin-top:14px">
+    <div>
+      <label for="film_id">{{ ui('s_film') }}</label>
+      <select id="film_id" name="film_id" required>
+        <option value="">{{ ui('s_film_ph') }}</option>
+        {% for f in films %}
+          <option value="{{ f.id }}" {{ 'selected' if form.get('film_id')==f.id|string }}>
+            {{ ftitle(f) }}{% if f.year %} ({{ f.year }}){% endif %}
+            {%- if f.director %} · {{ ui('dir_prefix') }} {{ f.director }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="hint">{{ ui('s_film_hint') }}</div>
+    </div>
+    <div>
+      <label for="event">{{ ui('s_event') }}</label>
+      <input type="text" id="event" name="event" value="{{ form.get('event','') }}"
+             placeholder="{{ ui('s_event_ph') }}">
+    </div>
+  </div>
+
+  <div class="grid g3" style="margin-top:16px">
+    <div>
+      <label for="venue">{{ ui('s_venue') }}</label>
+      <input type="text" id="venue" name="venue" value="{{ form.get('venue','') }}"
+             placeholder="{{ ui('s_venue_ph') }}">
+    </div>
+    <div>
+      <label for="city">{{ ui('s_city') }}</label>
+      <input type="text" id="city" name="city" value="{{ form.get('city','') }}">
+    </div>
+    <div>
+      <label for="country">{{ ui('s_country') }}</label>
+      <input type="text" id="country" name="country" value="{{ form.get('country','') }}">
+    </div>
+  </div>
+
+  <div class="grid g3" style="margin-top:16px">
+    <div>
+      <label for="date">{{ ui('s_date') }}</label>
+      <input type="date" id="date" name="date" value="{{ form.get('date','') }}">
+    </div>
+    <div>
+      <label for="screenings">{{ ui('s_count') }}</label>
+      <input type="number" id="screenings" name="screenings" min="1" step="1"
+             value="{{ form.get('screenings','1') }}">
+    </div>
+    <div>
+      <label for="fee_eur">{{ ui('s_fee') }}</label>
+      <input type="number" id="fee_eur" name="fee_eur" min="0" step="0.01"
+             value="{{ form.get('fee_eur','') }}">
+      <div class="hint">{{ ui('s_fee_hint') }}</div>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div>
+      <label for="programme">{{ ui('s_programme') }}</label>
+      <input type="text" id="programme" name="programme" value="{{ form.get('programme','') }}">
+    </div>
+    <div>
+      <label for="notes">{{ ui('s_notes') }}</label>
+      <input type="text" id="notes" name="notes" value="{{ form.get('notes','') }}">
+    </div>
+  </div>
+
+  <div class="actions">
+    <button type="submit">{{ ui('s_save') }}</button>
+    <a class="btn ghost" href="{{ url_for('reports') }}">{{ ui('s_to_reports') }}</a>
+  </div>
+</div>
+</form>
+
+<div class="row" style="justify-content:space-between;align-items:baseline">
+  <h2 style="margin:6px 0">{{ ui('s_log') }}</h2>
+  <span class="muted small">{{ ui('s_rows', n=totals.n, s=totals.s, v=totals.v|eur) }}</span>
+</div>
+
+<div class="card">
+  {% if not entries %}
+    <p class="muted small" style="margin:0">{{ ui('s_log_empty') }}</p>
+  {% else %}
+  <table>
+    <thead>
+      <tr><th>{{ ui('th_date') }}</th><th>{{ ui('th_film') }}</th>
+          <th>{{ ui('th_event') }}</th><th>{{ ui('th_venue') }}</th>
+          <th class="num">{{ ui('th_screenings') }}</th>
+          <th class="num">{{ ui('th_revenue') }}</th>
+          <th></th></tr>
+    </thead>
+    <tbody>
+    {% for e in entries %}
+      {% set s = e.row %}
+      <tr>
+        <td>{{ s.date_label or '-' }}</td>
+        <td>{{ ftitle(e.film) if e.film else s.film_title }}
+          {% if not e.film %}<div class="muted small">{{ ui('r_no_films') }}</div>{% endif %}</td>
+        <td>{{ s.event or '-' }}
+          {% if s.programme %}<div class="muted small">{{ s.programme }}</div>{% endif %}</td>
+        <td>{{ s.place or '-' }}</td>
+        <td class="num">{{ s.screenings }}</td>
+        <td class="num">{{ s.revenue|eur }}</td>
+        <td class="num">
+          <form method="post" action="{{ url_for('screening_delete', screening_id=s.row) }}"
+                onsubmit="return confirm({{ ui('s_delete_confirm')|tojson }})">
+            <button type="submit" class="linklike">{{ ui('s_delete') }}</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

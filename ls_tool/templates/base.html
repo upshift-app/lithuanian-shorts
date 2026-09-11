@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="{{ ui_lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Lithuanian Shorts{% endblock %}</title>
+<style>
+  :root{
+    --ink:#141414; --muted:#6b6b6b; --line:#e2e2e2; --bg:#fafafa;
+    --card:#ffffff; --accent:#c8102e; --ok:#1f7a4d; --warn:#a8620a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.55 "Segoe UI",-apple-system,system-ui,sans-serif}
+  a{color:var(--ink)}
+  header{background:#111;color:#fff;padding:14px 28px;display:flex;
+         align-items:center;gap:26px;flex-wrap:wrap}
+  header .brand{font-weight:700;letter-spacing:.14em;font-size:12px;text-transform:uppercase}
+  header nav a{color:#bbb;text-decoration:none;font-size:13px;padding:4px 0;
+               border-bottom:2px solid transparent}
+  header nav a:hover{color:#fff}
+  header nav a.on{color:#fff;border-bottom-color:var(--accent)}
+  header nav{display:flex;gap:18px}
+  header .right{margin-left:auto;display:flex;align-items:center;gap:16px}
+  header .meta{color:#888;font-size:11.5px}
+  header .lang{color:#fff;text-decoration:none;font-size:11.5px;font-weight:600;
+               border:1px solid #444;border-radius:4px;padding:4px 10px}
+  header .lang:hover{background:#fff;color:#111;border-color:#fff}
+  main{max-width:1180px;margin:0 auto;padding:26px 28px 70px}
+  h1{font-size:24px;margin:0 0 4px}
+  h2{font-size:17px;margin:26px 0 10px}
+  h3{font-size:14.5px;margin:0 0 3px}
+  .lede{color:var(--muted);margin:0 0 22px;font-size:13.5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;
+        padding:20px 22px;margin-bottom:18px}
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  label{display:block;font-size:11.5px;font-weight:600;text-transform:uppercase;
+        letter-spacing:.05em;color:var(--muted);margin-bottom:5px}
+  input[type=text],input[type=number],input[type=date],input[type=password],
+  input[type=email],select,textarea{
+    width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:5px;
+    font:inherit;background:#fff}
+  input:focus,select:focus,textarea:focus{outline:2px solid #111;outline-offset:-1px}
+  select[multiple]{height:170px}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+  .chk{display:flex;align-items:center;gap:7px;font-size:13px;
+       text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink)}
+  .chk input{width:auto}
+  button,.btn{background:#111;color:#fff;border:0;border-radius:5px;
+              padding:10px 18px;font:inherit;font-weight:600;cursor:pointer;
+              text-decoration:none;display:inline-block}
+  button:hover,.btn:hover{background:#333}
+  .btn.ghost{background:#fff;color:#111;border:1px solid var(--line)}
+  .btn.ghost:hover{background:#f0f0f0}
+  button.linklike{background:none;border:0;padding:0 0 0 8px;font:inherit;
+                  font-weight:400;color:var(--accent);cursor:pointer;
+                  text-decoration:underline}
+  button.linklike:hover{background:none;color:#8d0b20}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+     color:var(--muted);border-bottom:1px solid #bbb;padding:7px 8px}
+  td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr.total td{font-weight:700;border-bottom:0}
+  .num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  .tag{display:inline-block;background:#f0f0f0;border-radius:3px;
+       padding:1px 7px;font-size:11px;color:#444;margin:2px 3px 0 0}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+  .stat .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .note{border-left:3px solid var(--warn);background:#fff8ef;padding:9px 13px;
+        font-size:12.5px;border-radius:0 5px 5px 0;margin:5px 0}
+  .err{border-left:3px solid var(--accent);background:#fff0f2;padding:11px 14px;
+       border-radius:0 5px 5px 0;margin-bottom:16px}
+  .ok{color:var(--ok)} .bad{color:var(--accent)}
+  .propose{border-top:3px solid #111}
+  .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .kwbox{max-height:190px;overflow-y:auto;border:1px solid var(--line);
+         border-radius:5px;padding:9px;background:#fff}
+  .kwbox .chk{margin-bottom:3px}
+  footer{color:var(--muted);font-size:11.5px;text-align:center;padding:0 0 30px}
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">Lithuanian Shorts</span>
+  <nav>
+    <a href="{{ url_for('index') }}" class="{{ 'on' if page=='programme' }}">{{ ui('nav_programmes') }}</a>
+    <a href="{{ url_for('screening_log') }}" class="{{ 'on' if page=='screenings' }}">{{ ui('nav_screenings') }}</a>
+    <a href="{{ url_for('reports') }}" class="{{ 'on' if page=='reports' }}">{{ ui('nav_reports') }}</a>
+    <a href="{{ url_for('films') }}" class="{{ 'on' if page=='films' }}">{{ ui('nav_archive') }}</a>
+    <a href="{{ url_for('keywords') }}" class="{{ 'on' if page=='keywords' }}">{{ ui('nav_keywords') }}</a>
+    {% if user and user.is_admin %}
+    <a href="{{ url_for('users') }}" class="{{ 'on' if page=='users' }}">{{ ui('nav_users') }}</a>
+    {% endif %}
+  </nav>
+  <span class="right">
+    {% if catalog %}
+    <span class="meta">
+      {{ catalog|length }} {{ ui('films_count') }} ·
+      {{ ui('updated') }} {{ catalog.scraped_at[:10] if catalog.scraped_at }}
+    </span>
+    {% endif %}
+    {% if user %}
+    <span class="meta">{{ user.email }}</span>
+    <a class="lang" href="{{ url_for('password') }}">{{ ui('nav_password') }}</a>
+    <a class="lang" href="{{ url_for('logout') }}">{{ ui('nav_logout') }}</a>
+    {% endif %}
+    <a class="lang" href="{{ url_for('set_lang', code=other_lang) }}"
+       title="{{ ui('switch_title') }}">{{ ui('switch_lang') }}</a>
+  </span>
+</header>
+<main>
+{% block body %}{% endblock %}
+</main>
+<footer>{{ ui('footer') }}</footer>
+</body>
+</html>

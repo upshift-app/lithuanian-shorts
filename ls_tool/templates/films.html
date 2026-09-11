@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% set page = 'films' %}
+{% block title %}{{ ui('a_title') }} · Lithuanian Shorts{% endblock %}
+
+{% block body %}
+<div class="row" style="justify-content:space-between;align-items:flex-start">
+  <div>
+    <h1>{{ ui('a_title') }}</h1>
+    <p class="lede">{{ ui('a_lede') }}</p>
+  </div>
+  <a class="btn" href="{{ url_for('film_new') }}">{{ ui('a_add') }}</a>
+</div>
+
+{% if notice %}
+  <div class="note" style="border-left-color:var(--ok);background:#f1f8f4">
+    {{ ui(notice) }}
+  </div>
+{% endif %}
+
+<form method="get" class="card">
+  <div class="row">
+    <div style="flex:1;min-width:260px">
+      <label for="q">{{ ui('a_search') }}</label>
+      <input type="text" id="q" name="q" value="{{ q }}"
+             placeholder="{{ ui('a_search_ph') }}">
+    </div>
+    <button type="submit">{{ ui('a_search_btn') }}</button>
+  </div>
+  <div class="hint">
+    {% if total > shown %}
+      {{ ui('a_showing', n=total, shown=shown) }}
+    {% else %}
+      {{ ui('a_found', n=total) }}
+    {% endif %}
+  </div>
+</form>
+
+<div class="card">
+<table>
+  <thead>
+    <tr><th>{{ ui('th_id') }}</th><th>{{ ui('th_film') }}</th>
+        <th>{{ ui('th_year') }}</th><th>{{ ui('th_genre') }}</th>
+        <th class="num">{{ ui('th_duration') }}</th>
+        <th>{{ ui('th_keywords') }}</th><th>{{ ui('a_licence') }}</th>
+        <th>{{ ui('a_actions') }}</th></tr>
+  </thead>
+  <tbody>
+  {% for f in films %}
+    <tr>
+      <td class="muted num">{{ f.id }}</td>
+      <td>
+        {% if f.url %}
+          <a href="{{ f.url_en if ui_lang == 'en' and f.url_en else f.url }}"
+             target="_blank" rel="noopener"><strong>{{ ftitle(f) }}</strong></a>
+        {% else %}
+          <strong>{{ ftitle(f) }}</strong>
+        {% endif %}
+        {% if f.source == 'manual' %}
+          <span class="tag" style="background:#efe6ff;color:#5b3ea8">{{ ui('a_manual') }}</span>
+        {% endif %}
+        {% if f.director %}<div class="muted small">{{ ui('dir_prefix') }} {{ f.director }}</div>{% endif %}
+      </td>
+      <td>{{ f.year or '-' }}</td>
+      <td>{{ fgenre(f) or '-' }}</td>
+      <td class="num">{{ f.duration_min|minutes }}</td>
+      <td>
+        {% for k in fkeywords(f)[:6] %}<span class="tag">{{ k }}</span>{% endfor %}
+        {% if f.keywords and f.keywords_source == 'ai' %}
+          <span class="tag" style="background:#e8f0fe;color:#1a4a8a"
+                title="{{ ui('kw_badge_ai_title') }}">{{ ui('kw_badge_ai') }}</span>
+        {% endif %}
+      </td>
+      <td class="small">
+        {% if f.licence_signed is none %}<span class="muted">—</span>
+        {% elif f.licence_signed %}<span class="ok">{{ ui('a_lic_yes') }}</span>
+        {% else %}<span class="bad">{{ ui('a_lic_no') }}</span>{% endif %}
+      </td>
+      <td class="small" style="white-space:nowrap">
+        {% if f.source == 'manual' %}
+          <a href="{{ url_for('film_edit', film_id=f.id) }}">{{ ui('a_edit') }}</a>
+          <form method="post" action="{{ url_for('film_delete', film_id=f.id) }}"
+                style="display:inline"
+                onsubmit="return confirm('{{ ui('a_delete_confirm') }}')">
+            <button type="submit" class="linklike">{{ ui('a_delete') }}</button>
+          </form>
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="hint">{{ ui('a_only_manual') }}</p>
+</div>
+{% endblock %}

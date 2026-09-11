@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% set page = 'keywords' %}
+{% block title %}{{ ui('kw_title') }} · Lithuanian Shorts<script>
+// Ticking films for generation, and one click to accept every suggested
+// keyword on the page - the two things that were slowest by hand.
+(function () {
+  var form = document.getElementById('pick-form');
+  if (form) {
+    var boxes = form.querySelectorAll('input[name="film_ids"]');
+    var note = document.getElementById('pick-time');
+    var template = {{ ui('kw_suggest_time', n='__N__', min='__M__')|tojson }};
+
+    function refresh() {
+      var n = 0;
+      Array.prototype.forEach.call(boxes, function (b) { if (b.checked) n++; });
+      note.textContent = n
+        ? template.replace('__N__', n).replace('__M__', Math.max(1, Math.ceil(n / 60)))
+        : '';
+    }
+    Array.prototype.forEach.call(boxes, function (b) {
+      b.addEventListener('change', refresh);
+    });
+    function setAll(state) {
+      return function (e) {
+        e.preventDefault();
+        Array.prototype.forEach.call(boxes, function (b) { b.checked = state; });
+        refresh();
+      };
+    }
+    document.getElementById('pick-all').addEventListener('click', setAll(true));
+    document.getElementById('pick-none').addEventListener('click', setAll(false));
+    refresh();
+  }
+
+  var tick = document.getElementById('tick-all');
+  if (tick) {
+    tick.addEventListener('click', function () {
+      var boxes = tick.form.querySelectorAll('input[type=checkbox]');
+      Array.prototype.forEach.call(boxes, function (b) { b.checked = true; });
+    });
+  }
+})();
+</script>
+{% endblock %}
+
+{% block body %}
+<h1>{{ ui('kw_title') }}</h1>
+<p class="lede">{{ ui('kw_lede', vocab=vocabulary|length) }}</p>
+
+{% if saved %}
+  <div class="note" style="border-left-color:var(--ok);background:#f1f8f4">
+    {{ ui('kw_saved', n=saved) }}
+  </div>
+{% endif %}
+{% if request.args.get('error') %}
+  <div class="err">{{ request.args.get('error') }}</div>
+{% endif %}
+
+<div class="grid g3" style="margin-bottom:18px">
+  <div class="stat"><div class="v">{{ n_untagged }}</div>
+       <div class="k">{{ ui('kw_filter_pending') }}</div></div>
+  <div class="stat"><div class="v">{{ n_suggested }}</div>
+       <div class="k">{{ ui('kw_suggested') }}</div></div>
+  <div class="stat"><div class="v">{{ n_missing }}</div>
+       <div class="k">{{ ui('kw_filter_missing') }}</div></div>
+  <div class="stat"><div class="v">{{ n_approved }}</div>
+       <div class="k">{{ ui('kw_filter_approved') }}</div></div>
+</div>
+
+<div class="note">{{ ui('kw_ai_note') }}</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="row" style="margin-bottom:12px">
+    {% for key, label in [('pending', ui('kw_filter_pending')),
+                          ('missing', ui('kw_filter_missing')),
+                          ('approved', ui('kw_filter_approved')),
+                          ('all', ui('kw_filter_all'))] %}
+      <a class="btn {{ '' if filter == key else 'ghost' }}"
+         href="{{ url_for('keywords', filter=key, q=query or None, per_page=per_page) }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  <form method="get" class="row" style="align-items:flex-end">
+    <input type="hidden" name="filter" value="{{ filter }}">
+    <div style="flex:1;min-width:240px">
+      <label for="q">{{ ui('kw_search') }}</label>
+      <input type="text" id="q" name="q" value="{{ query }}"
+             placeholder="{{ ui('kw_search_ph') }}">
+    </div>
+    <div style="max-width:120px">
+      <label for="per_page">{{ ui('kw_per_page') }}</label>
+      <select id="per_page" name="per_page" onchange="this.form.submit()">
+        {% for n in page_sizes %}
+          <option value="{{ n }}" {{ 'selected' if n == per_page }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit">{{ ui('kw_search_btn') }}</button>
+  </form>
+  <div class="hint">{{ ui('kw_matched', n=matched) }}</div>
+</div>
+
+{% set pending_entries = entries | selectattr('suggested') | list %}
+{% set missing_entries = entries | rejectattr('suggested') | list %}
+
+{% if not entries %}
+  <div class="card"><p class="muted">{{ ui('kw_nothing') }}</p></div>
+{% endif %}
+
+{# Films that have no suggestions yet: each gets its own generate form, so it
+   cannot be nested inside the approvals form below. #}
+{% if missing_entries %}
+  <div class="card">
+    <p class="small muted" style="margin-top:0">{{ ui('kw_missing_note') }}</p>
+
+    <form method="post" action="{{ url_for('keywords_suggest') }}" id="pick-form">
+      <input type="hidden" name="filter" value="{{ filter }}">
+      <input type="hidden" name="q" value="{{ query }}">
+      <input type="hidden" name="per_page" value="{{ per_page }}">
+      <input type="hidden" name="page" value="{{ page_num }}">
+
+      <div class="row" style="justify-content:space-between;align-items:baseline">
+        <label style="margin:0">{{ ui('kw_pick_films') }}</label>
+        <span class="small">
+          <a href="#" id="pick-all">{{ ui('kw_select_all') }}</a> ·
+          <a href="#" id="pick-none">{{ ui('kw_select_none') }}</a>
+        </span>
+      </div>
+      <div class="kwbox" style="margin-top:6px">
+        {% for e in missing_entries %}
+          <label class="chk">
+            <input type="checkbox" name="film_ids" value="{{ e.film.id }}" checked>
+            {{ ftitle(e.film) }}
+            <span class="muted small">
+              {%- if e.film.year %} ({{ e.film.year }}){% endif %}
+              {%- if e.film.director %} · {{ ui('dir_prefix') }} {{ e.film.director }}{% endif %}
+            </span>
+          </label>
+        {% endfor %}
+      </div>
+      <div class="hint" id="pick-time"></div>
+      <div class="actions">
+        <button type="submit">{{ ui('kw_suggest_selected') }}</button>
+      </div>
+    </form>
+
+    {# Everything still without a suggestion, including the other pages. #}
+    {% if missing_ids|length > missing_entries|length %}
+    <form method="post" action="{{ url_for('keywords_suggest') }}"
+          onsubmit="return confirm({{ ui('kw_suggest_time', n=missing_ids|length,
+                                          min=((missing_ids|length / 60) | round(0, 'ceil') | int))|tojson }})">
+      <input type="hidden" name="filter" value="{{ filter }}">
+      <input type="hidden" name="q" value="{{ query }}">
+      <input type="hidden" name="per_page" value="{{ per_page }}">
+      {% for fid in missing_ids %}
+        <input type="hidden" name="film_ids" value="{{ fid }}">
+      {% endfor %}
+      <button type="submit" class="btn ghost">
+        {{ ui('kw_suggest_all', n=missing_ids|length) }}</button>
+      <div class="hint">{{ ui('kw_suggest_time', n=missing_ids|length,
+                              min=((missing_ids|length / 60) | round(0, 'ceil') | int)) }}</div>
+    </form>
+    {% endif %}
+  </div>
+
+  {% for e in missing_entries %}
+        <input type="hidden" name="film_ids" value="{{ e.film.id }}">
+      {% endfor %}
+      <button type="submit">{{ ui('kw_suggest_page', n=missing_entries|length) }}</button>
+    </form>
+  </div>
+
+  {% for e in missing_entries %}
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h3>{{ ftitle(e.film) }}</h3>
+      <span class="muted small">
+        {% if e.film.year %}{{ e.film.year }} · {% endif %}
+        {% if fgenre(e.film) %}{{ fgenre(e.film) }} · {% endif %}
+        {{ e.film.duration_min|minutes }} · ID {{ e.film.id }}
+      </span>
+    </div>
+    {% set synopsis = e.film.synopsis_en if ui_lang == 'en' and e.film.synopsis_en
+                      else e.film.synopsis %}
+    {% if synopsis %}
+      <p class="small muted" style="margin:6px 0 12px">{{ synopsis }}</p>
+    {% endif %}
+    {% if e.error %}<div class="note">{{ e.error }}</div>{% endif %}
+    <p class="small muted">{{ ui('kw_no_suggestion_yet') }}</p>
+    <form method="post" action="{{ url_for('keywords_suggest') }}">
+      <input type="hidden" name="film_ids" value="{{ e.film.id }}">
+      <input type="hidden" name="filter" value="{{ filter }}">
+      <input type="hidden" name="q" value="{{ query }}">
+      <button type="submit" class="btn ghost">{{ ui('kw_suggest_one') }}</button>
+    </form>
+  </div>
+  {% endfor %}
+{% endif %}
+
+{% if pending_entries %}
+<form method="post">
+  {% for e in pending_entries %}
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h3>
+        {{ ftitle(e.film) }}
+        {% if e.approved %}
+          <span class="tag" style="background:#e6f4ec;color:#1f7a4d">✓</span>
+        {% endif %}
+      </h3>
+      <span class="muted small">
+        {% if e.film.year %}{{ e.film.year }} · {% endif %}
+        {% if fgenre(e.film) %}{{ fgenre(e.film) }} · {% endif %}
+        {{ e.film.duration_min|minutes }} · ID {{ e.film.id }}
+      </span>
+    </div>
+
+    {% set synopsis = e.film.synopsis_en if ui_lang == 'en' and e.film.synopsis_en
+                      else e.film.synopsis %}
+    {% if synopsis %}
+      <p class="small muted" style="margin:6px 0 12px">{{ synopsis }}</p>
+    {% endif %}
+
+    <input type="hidden" name="film_ids" value="{{ e.film.id }}">
+
+    <label>{{ ui('kw_suggested') }}</label>
+    <div class="row" style="gap:14px;align-items:center">
+      {% for kw in e.suggested %}
+        <label class="chk">
+          <input type="checkbox" name="kw_{{ e.film.id }}" value="{{ kw }}"
+                 {{ 'checked' if kw in e.chosen }}>
+          {{ catalog.keyword_map.get(kw, kw) if ui_lang == 'en' else kw }}
+        </label>
+      {% endfor %}
+    </div>
+
+    <div style="margin-top:12px">
+      <label for="extra_{{ e.film.id }}">{{ ui('kw_add_more') }}</label>
+      <input type="text" id="extra_{{ e.film.id }}" name="extra_{{ e.film.id }}"
+             list="vocab-list"
+             value="{{ e.chosen | reject('in', e.suggested) | join(', ') }}">
+      <div class="hint">{{ ui('kw_add_hint') }}</div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <datalist id="vocab-list">
+    {% for k in vocabulary %}<option value="{{ k }}">{% endfor %}
+  </datalist>
+
+  <div class="actions">
+    <button type="submit">{{ ui('kw_save') }}</button>
+    <button type="button" class="btn ghost" id="tick-all">{{ ui('kw_tick_all') }}</button>
+  </div>
+</form>
+{% endif %}
+
+{% if pages > 1 %}
+<div class="row" style="justify-content:center;align-items:center;margin-top:20px">
+  {% if page_num > 1 %}
+    <a class="btn ghost"
+       href="{{ url_for('keywords', filter=filter, q=query or None, page=page_num-1, per_page=per_page) }}">{{ ui('kw_prev') }}</a>
+  {% endif %}
+  <span class="muted small">{{ ui('kw_page', page=page_num, pages=pages) }}</span>
+  {% if page_num < pages %}
+    <a class="btn ghost"
+       href="{{ url_for('keywords', filter=filter, q=query or None, page=page_num+1, per_page=per_page) }}">{{ ui('kw_next') }}</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

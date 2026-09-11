@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% set page = 'programme' %}
+{% block title %}{{ ui('p_title') }} · Lithuanian Shorts{% endblock %}
+
+{% block body %}
+<h1>{{ ui('p_title') }}</h1>
+<p class="lede">{{ ui('p_lede', n=catalog|length) }}</p>
+
+<form method="post">
+<div class="card">
+  <div class="grid g2">
+    <div>
+      <label for="title">{{ ui('p_name') }}</label>
+      <input type="text" id="title" name="title"
+             value="{{ form.get('title','') }}" placeholder="{{ ui('p_name_ph') }}">
+    </div>
+    <div>
+      <label for="occasion">{{ ui('p_occasion') }}</label>
+      <input type="text" id="occasion" name="occasion"
+             value="{{ form.get('occasion','') }}" placeholder="{{ ui('p_occasion_ph') }}">
+    </div>
+    <div>
+      <label for="lang">{{ ui('p_doclang') }}</label>
+      <select id="lang" name="lang">
+        <option value="lt" {{ 'selected' if form.get('lang', ui_lang)=='lt' }}>Lietuvių</option>
+        <option value="en" {{ 'selected' if form.get('lang', ui_lang)=='en' }}>English</option>
+      </select>
+      <div class="hint">{{ ui('p_doclang_hint') }}</div>
+    </div>
+  </div>
+
+  <h2>{{ ui('p_theme') }}</h2>
+  <div class="grid g2">
+    <div>
+      <label>{{ ui('p_keywords') }}</label>
+      <div class="kwbox">
+        {% for kw, n in keyword_counts.items() %}
+          <label class="chk">
+            <input type="checkbox" name="keywords" value="{{ kw }}"
+              {{ 'checked' if kw in form.getlist('keywords') }}>
+            {{ kw }} <span class="muted small">({{ n }})</span>
+          </label>
+        {% endfor %}
+      </div>
+      <div class="hint">{{ ui('p_keywords_hint') }}</div>
+    </div>
+    <div>
+      <div>
+        <label for="query">{{ ui('p_query') }}</label>
+        <input type="text" id="query" name="query" value="{{ form.get('query','') }}"
+               placeholder="{{ ui('p_query_ph') }}">
+      </div>
+      <div style="margin-top:14px">
+        <label for="keywords_extra">{{ ui('p_extra_kw') }}</label>
+        <input type="text" id="keywords_extra" name="keywords_extra"
+               value="{{ form.get('keywords_extra','') }}"
+               placeholder="{{ ui('p_extra_kw_ph') }}">
+      </div>
+      <div style="margin-top:14px">
+        <label>{{ ui('p_genre') }}</label>
+        {% set picked_genres = form.getlist('genres') %}
+        <div class="kwbox" style="max-height:none">
+          <label class="chk">
+            <input type="checkbox" id="genre-all" {{ 'checked' if not picked_genres }}>
+            <strong>{{ ui('p_genre_all') }}</strong>
+          </label>
+          <hr style="border:0;border-top:1px solid var(--line);margin:7px 0">
+          {% for g in genres %}
+            <label class="chk">
+              <input type="checkbox" class="genre-one" name="genres" value="{{ g }}"
+                     {{ 'checked' if g in picked_genres }}>
+              {{ genre_map.get(g, g) if ui_lang == 'en' else g }}
+            </label>
+          {% endfor %}
+        </div>
+        <div class="hint">{{ ui('p_genre_hint') }}</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>{{ ui('p_limits') }}</h2>
+  <div class="grid g3">
+    <div>
+      <label for="min_films">{{ ui('p_films_from') }}</label>
+      <input type="number" id="min_films" name="min_films" min="1" max="20"
+             value="{{ form.get('min_films','5') }}">
+    </div>
+    <div>
+      <label for="max_films">{{ ui('p_films_to') }}</label>
+      <input type="number" id="max_films" name="max_films" min="1" max="20"
+             value="{{ form.get('max_films','6') }}">
+    </div>
+    <div>
+      <label for="max_minutes">{{ ui('p_max_minutes') }}</label>
+      <input type="number" id="max_minutes" name="max_minutes" min="10" max="400"
+             value="{{ form.get('max_minutes','90') }}">
+    </div>
+    <div>
+      <label for="year_from">{{ ui('p_year_from') }}</label>
+      <input type="number" id="year_from" name="year_from"
+             min="{{ year_min }}" max="{{ year_max }}" placeholder="{{ year_min }}"
+             value="{{ form.get('year_from','') }}">
+    </div>
+    <div>
+      <label for="year_to">{{ ui('p_year_to') }}</label>
+      <input type="number" id="year_to" name="year_to"
+             min="{{ year_min }}" max="{{ year_max }}" placeholder="{{ year_max }}"
+             value="{{ form.get('year_to','') }}">
+    </div>
+    <div>
+      <label for="n_proposals">{{ ui('p_variants') }}</label>
+      {% set chosen_n = form.get('n_proposals', 'all') %}
+      <select id="n_proposals" name="n_proposals">
+        <option value="all" {{ 'selected' if chosen_n == 'all' }}>{{ ui('p_variants_all') }}</option>
+        {% for n in range(1, max_proposals) %}
+          <option value="{{ n }}" {{ 'selected' if chosen_n == n|string }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+      {% if submitted and found_total %}
+        <div class="hint">{{ ui('p_variants_found', n=found_total) }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:16px">
+    <label class="chk">
+      <input type="checkbox" name="licensed_only" {{ 'checked' if form.get('licensed_only') }}>
+      {{ ui('p_licensed_only') }}
+    </label>
+    <label class="chk">
+      <input type="checkbox" name="strict_keywords" {{ 'checked' if form.get('strict_keywords') }}>
+      {{ ui('p_strict_kw') }}
+    </label>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div>
+      <label for="pin_ids">{{ ui('p_pin') }}</label>
+      <input type="text" id="pin_ids" name="pin_ids" value="{{ form.get('pin_ids','') }}"
+             placeholder="{{ ui('p_pin_ph') }}">
+    </div>
+    <div>
+      <label for="exclude_ids">{{ ui('p_exclude') }}</label>
+      <input type="text" id="exclude_ids" name="exclude_ids"
+             value="{{ form.get('exclude_ids','') }}">
+    </div>
+  </div>
+
+  <div class="actions">
+    <button type="submit">{{ ui('p_submit') }}</button>
+    <span class="hint" style="align-self:center">
+      {{ ui('p_id_hint_pre') }}
+      <a href="{{ url_for('films') }}">{{ ui('nav_archive')|lower }}</a>
+      {{ ui('p_id_hint_post') }}
+    </span>
+  </div>
+</div>
+</form>
+
+{% if submitted %}
+  {% if not proposals %}
+    <div class="err">
+      <strong>{{ ui('p_fail') }}</strong><br>
+      {{ ui('p_fail_body', n=pool_size) }}
+    </div>
+  {% else %}
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h2 style="margin:6px 0">{{ ui('p_proposals') }}</h2>
+      <div class="actions" style="margin:0">
+        <a class="btn" href="{{ url_for('download', token=token, fmt='docx') }}">{{ ui('download_word') }}</a>
+        <a class="btn ghost" href="{{ url_for('download', token=token, fmt='pdf') }}">{{ ui('download_pdf') }}</a>
+      </div>
+    </div>
+
+    {% for prog in proposals %}
+    <div class="card propose">
+      <div class="row" style="justify-content:space-between">
+        <h3>{{ ui('p_variant', n=loop.index) }}</h3>
+        <span class="muted small">
+          {{ prog.films|length }} {{ ui('p_films') }} · {{ prog.runtime(ui_lang) }}
+          · {{ ui('p_match') }} {{ '%.2f'|format(prog.score) }}
+        </span>
+      </div>
+      <table style="margin-top:10px">
+        <thead>
+          <tr><th>{{ ui('th_no') }}</th><th>{{ ui('th_film') }}</th>
+              <th>{{ ui('th_year') }}</th><th>{{ ui('th_genre') }}</th>
+              <th class="num">{{ ui('th_duration') }}</th>
+              <th>{{ ui('th_keywords') }}</th></tr>
+        </thead>
+        <tbody>
+        {% for f in prog.films %}
+          <tr>
+            <td class="muted">{{ loop.index }}</td>
+            <td>
+              <a href="{{ f.url_en if ui_lang == 'en' and f.url_en else f.url }}"
+                 target="_blank" rel="noopener"><strong>{{ ftitle(f) }}</strong></a>
+              {% if f.director %}<div class="muted small">{{ ui('dir_prefix') }} {{ f.director }}</div>{% endif %}
+              <div class="muted small">{{ ui('th_id') }} {{ f.id }}</div>
+            </td>
+            <td>{{ f.year or '-' }}</td>
+            <td>{{ fgenre(f) or '-' }}</td>
+            <td class="num">{{ f.duration_min|minutes }}</td>
+            <td>{% for k in fkeywords(f) %}<span class="tag">{{ k }}</span>{% endfor %}</td>
+          </tr>
+        {% endfor %}
+          <tr class="total">
+            <td></td><td>{{ ui('th_total') }}</td><td></td><td></td>
+            <td class="num">{{ prog.runtime(ui_lang) }}</td><td></td>
+          </tr>
+        </tbody>
+      </table>
+
+      {% set cov = prog.keyword_coverage() %}
+      {% if cov %}
+        <div class="small" style="margin-top:10px">
+          {{ ui('p_coverage') }}:
+          {% for kw, ok in cov.items() %}
+            <span class="{{ 'ok' if ok else 'bad' }}">{{ '✓' if ok else '✕' }} {{ kw }}</span>{{ '' if loop.last else ' · ' }}
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% for w in prog.warnings(ui_lang) %}
+        <div class="note">{{ w }}</div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    {% if alternates %}
+    <div class="card">
+      <h3>{{ ui('p_alternates') }}</h3>
+      <p class="muted small">{{ ui('p_alternates_note') }}</p>
+      <table>
+        <tbody>
+        {% for f in alternates %}
+          <tr>
+            <td><a href="{{ f.url_en if ui_lang == 'en' and f.url_en else f.url }}"
+                   target="_blank" rel="noopener">{{ ftitle(f) }}</a>
+                <span class="muted small">{{ ui('th_id') }} {{ f.id }}</span></td>
+            <td>{{ f.year or '-' }}</td>
+            <td>{{ fgenre(f) or '-' }}</td>
+            <td class="num">{{ f.duration_min|minutes }}</td>
+            <td>{% for k in fkeywords(f)[:5] %}<span class="tag">{{ k }}</span>{% endfor %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  {% endif %}
+{% endif %}
+
+<script>
+// "All genres" is the resting state: ticking it clears the individual boxes
+// (an empty selection already means every genre server-side), and ticking any
+// single genre unticks it.
+(function () {
+  var all = document.getElementById('genre-all');
+  if (!all) return;
+  var ones = Array.prototype.slice.call(document.querySelectorAll('.genre-one'));
+
+  function sync() {
+    var anyPicked = ones.some(function (c) { return c.checked; });
+    all.checked = !anyPicked;
+  }
+  all.addEventListener('change', function () {
+    if (all.checked) ones.forEach(function (c) { c.checked = false; });
+    else if (!ones.some(function (c) { return c.checked; })) all.checked = true;
+  });
+  ones.forEach(function (c) { c.addEventListener('change', sync); });
+  sync();
+})();
+</script>
+{% endblock %}
