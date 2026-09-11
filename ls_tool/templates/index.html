@@ -20,6 +20,11 @@
              value="{{ form.get('occasion','') }}" placeholder="{{ ui('p_occasion_ph') }}">
     </div>
     <div>
+      <label for="rating">{{ ui('p_rating') }}</label>
+      <input type="text" id="rating" name="rating"
+             value="{{ form.get('rating','') }}" placeholder="{{ ui('p_rating_ph') }}">
+    </div>
+    <div>
       <label for="lang">{{ ui('p_doclang') }}</label>
       <select id="lang" name="lang">
         <option value="lt" {{ 'selected' if form.get('lang', ui_lang)=='lt' }}>Lietuvių</option>
@@ -27,6 +32,12 @@
       </select>
       <div class="hint">{{ ui('p_doclang_hint') }}</div>
     </div>
+  </div>
+
+  <div>
+    <label for="intro">{{ ui('p_intro') }}</label>
+    <textarea id="intro" name="intro" rows="4"
+              placeholder="{{ ui('p_intro_ph') }}">{{ form.get('intro','') }}</textarea>
   </div>
 
   <h2>{{ ui('p_theme') }}</h2>

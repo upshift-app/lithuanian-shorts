@@ -314,6 +314,8 @@ def create_app() -> Flask:
         req = ProgrammeRequest(
             title=request.form.get("title") or "",
             occasion=request.form.get("occasion") or None,
+            intro=request.form.get("intro") or None,
+            rating=request.form.get("rating") or None,
             keywords=selected,
             query=request.form.get("query") or None,
             genres=request.form.getlist("genres"),

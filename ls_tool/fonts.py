@@ -38,7 +38,16 @@ SEARCH_DIRS = [
     "/System/Library/Fonts/Supplemental",
 ]
 
+SERIF_CANDIDATES = [
+    ("TimesNewRoman", "times.ttf", "timesbd.ttf", "timesi.ttf", "timesbi.ttf"),
+    ("LiberationSerif", "LiberationSerif-Regular.ttf", "LiberationSerif-Bold.ttf",
+     "LiberationSerif-Italic.ttf", "LiberationSerif-BoldItalic.ttf"),
+    ("DejaVuSerif", "DejaVuSerif.ttf", "DejaVuSerif-Bold.ttf",
+     "DejaVuSerif-Italic.ttf", "DejaVuSerif-BoldItalic.ttf"),
+]
+
 _resolved: Optional[Tuple[str, str]] = None
+_resolved_serif: Optional[Tuple[str, str]] = None
 
 
 def _find(filename: str) -> Optional[str]:
@@ -69,37 +78,58 @@ def _covers_lithuanian(path: str) -> bool:
         return False
 
 
+def _register_family(family: str, reg: str, bold: str, ital: str,
+                     bi: str) -> Optional[Tuple[str, str]]:
+    """Register one candidate family if it is installed and covers Lithuanian."""
+    reg_path = _find(reg)
+    if not reg_path or not _covers_lithuanian(reg_path):
+        return None
+
+    bold_path = _find(bold) or reg_path
+    ital_path = _find(ital) or reg_path
+    bi_path = _find(bi) or bold_path
+
+    try:
+        pdfmetrics.registerFont(TTFont(family, reg_path))
+        pdfmetrics.registerFont(TTFont(family + "-Bold", bold_path))
+        pdfmetrics.registerFont(TTFont(family + "-Italic", ital_path))
+        pdfmetrics.registerFont(TTFont(family + "-BoldItalic", bi_path))
+    except Exception:
+        return None
+
+    # so <b>/<i> markup inside Paragraphs resolves to the right face
+    addMapping(family, 0, 0, family)
+    addMapping(family, 1, 0, family + "-Bold")
+    addMapping(family, 0, 1, family + "-Italic")
+    addMapping(family, 1, 1, family + "-BoldItalic")
+    return family, family + "-Bold"
+
+
+def register_serif_fonts() -> Tuple[str, str]:
+    """A serif family for the programme document, sans as a last resort."""
+    global _resolved_serif
+    if _resolved_serif:
+        return _resolved_serif
+    for candidate in SERIF_CANDIDATES:
+        pair = _register_family(*candidate)
+        if pair:
+            _resolved_serif = pair
+            return _resolved_serif
+    _resolved_serif = register_fonts()
+    return _resolved_serif
+
+
 def register_fonts() -> Tuple[str, str]:
     """Register the best available family. Returns (regular_name, bold_name)."""
     global _resolved
     if _resolved:
         return _resolved
 
-    for family, reg, bold, ital, bi in CANDIDATES:
-        reg_path = _find(reg)
-        if not reg_path or not _covers_lithuanian(reg_path):
-            continue
-
-        bold_path = _find(bold) or reg_path
-        ital_path = _find(ital) or reg_path
-        bi_path = _find(bi) or bold_path
-
-        try:
-            pdfmetrics.registerFont(TTFont(family, reg_path))
-            pdfmetrics.registerFont(TTFont(family + "-Bold", bold_path))
-            pdfmetrics.registerFont(TTFont(family + "-Italic", ital_path))
-            pdfmetrics.registerFont(TTFont(family + "-BoldItalic", bi_path))
-        except Exception:
-            continue
-
-        # so <b>/<i> markup inside Paragraphs resolves to the right face
-        addMapping(family, 0, 0, family)
-        addMapping(family, 1, 0, family + "-Bold")
-        addMapping(family, 0, 1, family + "-Italic")
-        addMapping(family, 1, 1, family + "-BoldItalic")
-
-        _resolved = (family, family + "-Bold")
-        return _resolved
+    for candidate in CANDIDATES:
+        pair = _register_family(*candidate)
+        if pair:
+            _resolved = pair
+            return _resolved
 
     # Last resort: ReportLab ships Bitstream Vera.
     import reportlab

@@ -32,6 +32,9 @@ class ProgrammeRequest:
     """Everything the team specifies when asking for a programme."""
     title: str = "Filmų programa"
     occasion: Optional[str] = None          # festival / event / team building
+    # free text printed under the programme title in the exported document
+    intro: Optional[str] = None
+    rating: Optional[str] = None            # age rating, e.g. "N-16"
     keywords: List[str] = field(default_factory=list)
     query: Optional[str] = None             # free text over title/synopsis
     genres: List[str] = field(default_factory=list)

@@ -47,6 +47,8 @@ def cmd_programme(args):
     req = ProgrammeRequest(
         title=args.title or "",
         occasion=args.occasion,
+        intro=args.intro,
+        rating=args.rating,
         keywords=_split(args.keywords),
         query=args.query,
         genres=_split(args.genre),
@@ -226,6 +228,8 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("programme", help="sudaryti filmų programos pasiūlymą")
     s.add_argument("--title", help="programos pavadinimas")
     s.add_argument("--occasion", help="renginys / kontekstas")
+    s.add_argument("--intro", help="programos aprašymas dokumento pradžioje")
+    s.add_argument("--rating", help="amžiaus cenzas, pvz. N-16")
     s.add_argument("-k", "--keywords", help="raktažodžiai, atskirti kableliais")
     s.add_argument("-q", "--query", help="laisvo teksto paieška")
     s.add_argument("--genre", help="žanrai, atskirti kableliais")

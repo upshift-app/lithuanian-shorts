@@ -5,19 +5,20 @@ Documents can be produced in Lithuanian or English (``lang="lt"|"en"``).
 from __future__ import annotations
 
 import datetime as _dt
+import io
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import (KeepTogether, PageBreak, Paragraph,
+from reportlab.platypus import (Image, KeepTogether, PageBreak, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
-from .config import OUTPUT_DIR
-from .fonts import register_fonts
+from .config import ASSETS_DIR, OUTPUT_DIR
+from .fonts import register_fonts, register_serif_fonts
 from .i18n import (DEFAULT_LANG, film_country, film_genre, film_language,
                    film_synopsis, film_title, film_url, minutes_label,
                    norm_lang, t)
@@ -60,6 +61,100 @@ def _styles():
                                 textColor=MUTED, leading=10),
         "_fonts": (regular, bold),
     }
+
+
+def _programme_styles():
+    """The programme document is set in serif, like the hand-made original."""
+    regular, bold = register_serif_fonts()
+    return {
+        "title": ParagraphStyle("p_title", fontName=bold, fontSize=12,
+                                textColor=INK, leading=15, spaceAfter=13),
+        "body": ParagraphStyle("p_body", fontName=regular, fontSize=10,
+                               textColor=INK, leading=13, alignment=TA_LEFT),
+        "film_title": ParagraphStyle("p_film_title", fontName=bold, fontSize=10,
+                                     textColor=INK, leading=13),
+        "note": ParagraphStyle("p_note", fontName=regular, fontSize=9,
+                               textColor=MUTED, leading=12),
+        "_fonts": (regular, bold),
+    }
+
+
+LOGO = ASSETS_DIR / "logo.png"
+LOGO_WIDTH = 48 * mm
+STILL_WIDTH = 46 * mm
+STILL_MAX_BYTES = 4 * 1024 * 1024
+_STILL_CACHE: Dict[str, Optional[bytes]] = {}
+
+
+def _logo():
+    if not LOGO.is_file():
+        return None
+    try:
+        from reportlab.lib.utils import ImageReader
+        width, height = ImageReader(str(LOGO)).getSize()
+        logo = Image(str(LOGO), width=LOGO_WIDTH,
+                     height=LOGO_WIDTH * height / float(width))
+        logo.hAlign = "LEFT"
+        return logo
+    except Exception:
+        return None
+
+
+def _still_bytes(url: str) -> Optional[bytes]:
+    """Download a film still. Any failure just means the film prints without one."""
+    if url in _STILL_CACHE:
+        return _STILL_CACHE[url]
+    data = None
+    try:
+        import requests
+        response = requests.get(url, timeout=6, stream=True)
+        response.raise_for_status()
+        if response.headers.get("content-type", "").startswith("image/"):
+            payload = response.raw.read(STILL_MAX_BYTES + 1, decode_content=True)
+            if len(payload) <= STILL_MAX_BYTES:
+                data = payload
+    except Exception:
+        data = None
+    _STILL_CACHE[url] = data
+    return data
+
+
+def _still(film) -> Optional[Image]:
+    url = getattr(film, "image", None)
+    if not url or not str(url).startswith(("http://", "https://")):
+        return None
+    data = _still_bytes(str(url))
+    if not data:
+        return None
+    try:
+        from reportlab.lib.utils import ImageReader
+        width, height = ImageReader(io.BytesIO(data)).getSize()
+        still = Image(io.BytesIO(data), width=STILL_WIDTH,
+                      height=STILL_WIDTH * height / float(width))
+        still.hAlign = "RIGHT"
+        return still
+    except Exception:
+        return None
+
+
+def _headline(film, lang: str) -> str:
+    """'English title // Lithuanian title', primary title first."""
+    return film_title(film, lang).replace(" / ", " // ")
+
+
+def _film_meta(film, lang: str) -> str:
+    """'dir. Name, genre, year, 25 min.'"""
+    bits = []
+    if film.director:
+        bits.append(f"{t(lang, 'dir_prefix')} {film.director}")
+    genre = film_genre(film, lang)
+    if genre:
+        bits.append(str(genre).lower())
+    if film.year:
+        bits.append(str(film.year))
+    if film.duration_min:
+        bits.append(f"{int(round(film.duration_min))} {t(lang, 'minute')}.")
+    return ", ".join(bits)
 
 
 def _fmt_eur(amount: float) -> str:
@@ -137,111 +232,123 @@ def _criteria(req, lang) -> str:
 
 # ---------------------------------------------------------------- programme pdf
 
+PROG_MARGIN = 25 * mm
+
+
+def _build_programme(story, path: Path, title: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    doc = SimpleDocTemplate(
+        str(path), pagesize=A4,
+        leftMargin=PROG_MARGIN, rightMargin=PROG_MARGIN,
+        topMargin=14 * mm, bottomMargin=18 * mm,
+        title=title, author="Lithuanian Shorts",
+    )
+    doc.build(story)
+    return path
+
+
+def _film_block(film, lang: str, st, text_width: float, still_width: float,
+                gap: float):
+    """Title, credits and synopsis on the left, the film still on the right."""
+    text = [Paragraph(_esc(_headline(film, lang)), st["film_title"])]
+    meta = _film_meta(film, lang)
+    if meta:
+        text.append(Paragraph(_esc(meta), st["body"]))
+    synopsis = film_synopsis(film, lang)
+    if synopsis:
+        text.append(Spacer(1, 9))
+        text.append(Paragraph(_esc(synopsis), st["body"]))
+
+    still = _still(film)
+    if still is None:
+        return KeepTogether(text)
+
+    table = Table([[text, still]], colWidths=[text_width, gap + still_width])
+    table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return KeepTogether([table])
+
+
 def programme_pdf(proposals: Sequence[Programme], alternates=(),
                   path: Optional[Path] = None, subtitle: Optional[str] = None,
                   lang: Optional[str] = None) -> Path:
     req = proposals[0].request if proposals else None
     lang = norm_lang(lang or (req.lang if req else DEFAULT_LANG))
 
-    st = _styles()
-    _regular, bold = st["_fonts"]
-    content_width = A4[0] - 2 * MARGIN
+    st = _programme_styles()
+    # SimpleDocTemplate pads the frame by 6pt on each side; tables have to stay
+    # inside that or they hang past the text column.
+    content_width = A4[0] - 2 * PROG_MARGIN - 12
+    gap = 6 * mm
+    text_width = content_width - STILL_WIDTH - gap
 
     heading = (req.title if req and req.title else None) or t(lang, "programme_title")
 
-    story: List = [
-        Paragraph(t(lang, "brand"), st["eyebrow"]),
-        Paragraph(_esc(heading), st["title"]),
-    ]
-    if subtitle or (req and req.occasion):
-        story.append(Paragraph(_esc(subtitle or req.occasion), st["subtitle"]))
-
-    meta = f"{t(lang, 'prepared')} {_dt.date.today():%Y-%m-%d}"
-    if req:
-        meta += "<br/>" + _esc(_criteria(req, lang))
-    story.append(Paragraph(meta, st["meta"]))
+    story: List = []
+    logo = _logo()
+    if logo is not None:
+        story += [logo, Spacer(1, 14 * mm)]
 
     for idx, prog in enumerate(proposals, 1):
         if idx > 1:
             story.append(PageBreak())
 
-        label = t(lang, "variant", n=idx) if len(proposals) > 1 else t(lang, "programme")
-        story.append(Paragraph(label, st["eyebrow"]))
+        title_text = heading
+        if len(proposals) > 1:
+            title_text = f"{heading} — {t(lang, 'variant', n=idx)}"
+        story.append(Paragraph(_esc(title_text), st["title"]))
+
+        intro = subtitle or (req.intro if req else None) or (req.occasion if req else None)
+        if intro:
+            for para in str(intro).splitlines():
+                if para.strip():
+                    story.append(Paragraph(_esc(para.strip()), st["body"]))
+            story.append(Spacer(1, 13))
+
         story.append(Paragraph(
-            _esc(t(lang, "films_runtime", n=len(prog.films),
-                   runtime=prog.runtime(lang))), st["h2"]))
+            f"<b>{t(lang, 'duration_label')}</b> "
+            f"{int(round(prog.total_minutes))} {t(lang, 'minute')}.",
+            st["body"]))
+        if req and req.rating:
+            story.append(Paragraph(_esc(req.rating), st["body"]))
+        story.append(Spacer(1, 13))
 
-        rows = [[Paragraph(h, st["cellb"]) for h in
-                 (t(lang, "th_no"), t(lang, "th_film"),
-                  t(lang, "th_year_genre"), t(lang, "th_duration"))]]
-        for n, film in enumerate(prog.films, 1):
-            title_cell = [Paragraph(_esc(film_title(film, lang)), st["cellb"])]
-            if film.director:
-                title_cell.append(Paragraph(
-                    f"{t(lang, 'dir_prefix')} {_esc(film.director)}", st["cellm"]))
-            rows.append([
-                Paragraph(str(n), st["cell"]),
-                title_cell,
-                Paragraph(_esc(", ".join(str(x) for x in
-                                         (film.year, film_genre(film, lang)) if x)),
-                          st["cell"]),
-                Paragraph(minutes_label(film.duration_min, lang), st["cell"]),
-            ])
-        widths = [content_width * w for w in (0.07, 0.53, 0.26, 0.14)]
-        table = Table(rows, colWidths=widths, repeatRows=1)
-        table.setStyle(_table_style(bold))
-        story += [table, Spacer(1, 10)]
+        story.append(Paragraph(f"<b>{t(lang, 'films_in_programme')}</b>", st["body"]))
+        story.append(Spacer(1, 16))
 
         for n, film in enumerate(prog.films, 1):
-            block = [Paragraph(f"{n}. {_esc(film_title(film, lang))}", st["h3"])]
-            info = " &middot; ".join(_esc(x) for x in (
-                film.year, film_genre(film, lang),
-                minutes_label(film.duration_min, lang),
-                film_country(film, lang), film_language(film, lang)) if x)
-            block.append(Paragraph(info, st["small"]))
-            if film.director:
-                block.append(Paragraph(
-                    f"<b>{t(lang, 'director')}:</b> {_esc(film.director)}", st["body"]))
-            synopsis = film_synopsis(film, lang)
-            if synopsis:
-                block.append(Paragraph(_esc(synopsis), st["body"]))
-            if film.keywords:
-                block.append(Paragraph(
-                    f"<b>{t(lang, 'keywords')}:</b> " + _esc(", ".join(film.keywords)),
-                    st["small"]))
-            if film.licence_signed is not None:
-                block.append(Paragraph(
-                    f"<b>{t(lang, 'licence')}:</b> " +
-                    t(lang, "licence_yes" if film.licence_signed else "licence_no"),
-                    st["small"]))
-            url = film_url(film, lang)
-            if url:
-                block.append(Paragraph(_esc(url), st["small"]))
-            block.append(Spacer(1, 6))
-            story.append(KeepTogether(block))
+            if n > 1:
+                story.append(Spacer(1, 18))
+            story.append(_film_block(film, lang, st, text_width, STILL_WIDTH, gap))
 
         warnings = prog.warnings(lang)
         if warnings:
-            block = [Paragraph(t(lang, "notes"), st["h3"])]
+            block = [Spacer(1, 18),
+                     Paragraph(f"<b>{t(lang, 'notes')}</b>", st["note"])]
             for w in warnings:
-                block.append(Paragraph("&bull; " + _esc(w), st["small"]))
+                block.append(Paragraph("&bull; " + _esc(w), st["note"]))
             story.append(KeepTogether(block))
 
     if alternates:
-        story.append(PageBreak())
-        story.append(Paragraph(t(lang, "alternates"), st["h2"]))
-        story.append(Paragraph(t(lang, "alternates_note"), st["small"]))
-        story.append(Spacer(1, 6))
+        block = [Spacer(1, 18),
+                 Paragraph(f"<b>{t(lang, 'alternates')}</b>", st["note"]),
+                 Paragraph(t(lang, "alternates_note"), st["note"])]
         for film in alternates:
             bits = [_esc(x) for x in (film.year, film_genre(film, lang),
                                       minutes_label(film.duration_min, lang)) if x]
-            line = f"<b>{_esc(film_title(film, lang))}</b> — " + " &middot; ".join(bits)
-            if film.keywords:
-                line += " &middot; " + _esc(", ".join(film.keywords[:5]))
-            story.append(Paragraph("&bull; " + line, st["body"]))
+            block.append(Paragraph(
+                "&bull; <b>" + _esc(film_title(film, lang)) + "</b> — "
+                + " &middot; ".join(bits), st["note"]))
+        story.append(KeepTogether(block))
 
     path = Path(path) if path else OUTPUT_DIR / _default_name(heading, "pdf", lang)
-    return _build(story, path, heading)
+    return _build_programme(story, path, heading)
 
 
 # ------------------------------------------------------------------- report pdf
