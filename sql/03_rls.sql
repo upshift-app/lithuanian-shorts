@@ -32,3 +32,15 @@ revoke all on all sequences in schema public from anon, authenticated;
 -- anon alone would leave the auth functions callable with the public key.
 revoke execute on all functions in schema public from public, anon, authenticated;
 alter default privileges in schema public revoke execute on functions from public;
+
+-- ...but service_role held EXECUTE only through that same PUBLIC grant, and the
+-- Flask server *is* service_role. Give it back explicitly - to the one role
+-- that is meant to have it - and keep it that way for objects created later.
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+grant execute on all functions in schema public to service_role;
+
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
+alter default privileges in schema public grant execute on functions to service_role;
