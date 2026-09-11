@@ -12,7 +12,7 @@ Abu rezultatai eksportuojami į **Word (.docx)** ir **PDF**, **lietuvių arba an
 
 ## Kur saugomi duomenys
 
-Archyvas, rodymai, licencijos ir vartotojai saugomi **Supabase** (Postgres)
+Archyvas, rodymai ir vartotojai saugomi **Supabase** (Postgres)
 duomenų bazėje, todėl visa komanda mato tuos pačius duomenis, o įrankis veikia
 ir internete. Prieiga — su el. paštu ir slaptažodžiu; paskyras kuria
 administratorius skiltyje **Vartotojai**.
@@ -38,7 +38,7 @@ Supabase SQL redaktoriuje paleiskite iš eilės:
 
 | Failas | Ką sukuria |
 |---|---|
-| `sql/01_schema.sql` | filmai, raktažodžiai, licencijos, rodymai, dokumentai |
+| `sql/01_schema.sql` | filmai, raktažodžiai, rodymai, dokumentai |
 | `sql/02_auth.sql` | vartotojai ir prisijungimo funkcijos |
 | `sql/03_rls.sql` | RLS — viešieji raktai nemato nieko |
 | `sql/04_seed_admin.sql` | pirmasis administratorius (pakeiskite el. paštą ir slaptažodį) |
@@ -81,7 +81,6 @@ rankinių eksportų nereikia:
 | Filmų sąrašas, raktažodžiai, kategorijos | WordPress REST API (`filmas`, `post_tag`, `kategorija`) |
 | Metai, žanras, trukmė, šalis, komanda, anotacija | Filmo puslapio HTML |
 | Angliški pavadinimai, anotacijos, žanrai | Angliška to paties filmo versija (`/en/film-database/...`) |
-| Licencinės sutartys | `data/licensing.xlsx` (jūsų pildoma lentelė) |
 | Rodymai ir įkainiai | `data/screenings.xlsx` (jūsų pildoma lentelė) |
 
 Šiuo metu archyve **435 filmai**. Visi turi trukmę, metus, žanrą ir anglišką
@@ -101,7 +100,6 @@ Skiltis **Programos**. Pasirenkate:
   paiešką, žanrą;
 - **apribojimus** — filmų skaičių (numatyta 5–6), maksimalią bendrą trukmę
   (numatyta 90 min), metų intervalą;
-- **licencijas** — galima leisti tik filmus su pasirašyta sutartimi;
 - **konkrečius filmus**, kuriuos būtina įtraukti arba atmesti (pagal ID).
 
 Įrankis pateikia **1–5 skirtingus programos variantus**. Bendra trukmė niekada
@@ -120,7 +118,7 @@ Kiekvienas variantas vertinamas pagal keturis rodiklius:
 | Dermė | ar nesikartoja režisieriai, ar išlaikyta žanrų, metų ir trukmių įvairovė |
 
 Dokumente pateikiama: programos lentelė, kiekvieno filmo anotacija ir metaduomenys,
-raktažodžiai, licencijos statusas ir nuoroda į filmo puslapį.
+raktažodžiai ir nuoroda į filmo puslapį.
 
 ### Komandinė eilutė
 
@@ -165,24 +163,6 @@ python run.py report --director "Vardas Pavardė" --date-from 2025-01-01 --lang 
 
 ---
 
-## Licencinės sutartys
-
-Licencijos saugomos duomenų bazės lentelėje `licensing`:
-
-| Stulpelis | Reikšmė |
-|---|---|
-| `film_id`, `film_title` | filmo atpažinimui |
-| `licence_signed` | `taip` / `ne` (tinka ir `yes`/`no`, `1`/`0`) |
-| `licence_until` | iki kada galioja |
-| `rights_holder` | teisių turėtojas |
-| `notes` | pastabos |
-
-Užpildžius šią lentelę, programų sudaryme galima pažymėti *„Tik filmai su
-pasirašyta licencine sutartimi“*. Nepažymėjus, dokumente vis tiek įrašoma
-pastaba apie filmus, kurių licencijos statusas nežinomas.
-
----
-
 ## Komandos
 
 | Komanda | Ką daro |
@@ -204,10 +184,9 @@ web įrankyje jie atsisiunčiami tiesiai iš naršyklės.
 ```
 ls_tool/
   scraper.py      duomenų surinkimas iš svetainės (LT + EN)
-  catalog.py      filmų modelis, filtravimas, licencijų sujungimas
+  catalog.py      filmų modelis, filtravimas
   programme.py    programų sudarymo logika ir vertinimas
   screenings.py   rodymų lentelė ir ataskaitų skaičiavimas
-  licensing.py    licencijų lentelė
   i18n.py         lietuviški / angliški dokumentų tekstai
   export_docx.py  Word eksportas
   export_pdf.py   PDF eksportas

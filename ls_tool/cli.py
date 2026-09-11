@@ -6,7 +6,7 @@ import datetime as _dt
 import sys
 from pathlib import Path
 
-from . import export_docx, export_pdf, licensing, screenings as scr
+from . import export_docx, export_pdf, screenings as scr
 from .catalog import fold, load_catalog
 from .programme import ProgrammeRequest, generate
 
@@ -58,7 +58,6 @@ def cmd_programme(args):
         min_films=args.min_films,
         max_films=args.max_films,
         max_minutes=args.max_minutes,
-        licensed_only=args.licensed_only,
         require_any_keyword=args.strict_keywords,
         exclude_ids=[int(x) for x in _split(args.exclude)],
         pin_ids=[int(x) for x in _split(args.pin)],
@@ -149,12 +148,6 @@ def cmd_report(args):
 
 
 def cmd_init_sheets(args):
-    cat = load_catalog(with_licensing=False)
-    try:
-        path = licensing.write_template(cat, overwrite=args.force)
-        print(f"Sukurta licencijų lentelė: {path} ({len(cat)} filmai)")
-    except FileExistsError as e:
-        print(f"Praleista: {e}")
     try:
         path = scr.write_template(overwrite=args.force)
         print(f"Sukurta rodymų lentelė: {path}")
@@ -239,8 +232,6 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-films", type=int, default=5)
     s.add_argument("--max-films", type=int, default=6)
     s.add_argument("--max-minutes", type=float, default=90)
-    s.add_argument("--licensed-only", action="store_true",
-                   help="tik filmai su pasirašyta licencine sutartimi")
     s.add_argument("--strict-keywords", action="store_true",
                    help="įtraukti tik filmus, turinčius bent vieną iš raktažodžių")
     s.add_argument("--exclude", help="filmų ID, kurių neįtraukti")
@@ -266,7 +257,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out", help="išvesties failas")
     s.set_defaults(func=cmd_report)
 
-    s = sub.add_parser("init-sheets", help="sukurti licencijų ir rodymų Excel lenteles")
+    s = sub.add_parser("init-sheets", help="sukurti rodymų Excel lentelę")
     s.add_argument("--force", action="store_true", help="perrašyti esamas")
     s.set_defaults(func=cmd_init_sheets)
 

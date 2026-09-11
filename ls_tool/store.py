@@ -180,32 +180,6 @@ def manual_delete(film_id: int) -> bool:
     return bool(result)
 
 
-# -------------------------------------------------------------------- licensing
-
-def licensing_rows() -> List[dict]:
-    return _all("licensing", order="id")
-
-
-def licensing_set(film_id: Optional[int], film_title: Optional[str],
-                  licence_signed: Optional[bool], licence_until: Optional[str],
-                  rights_holder: Optional[str], notes: Optional[str],
-                  actor: Optional[str] = None) -> dict:
-    row = {
-        "film_id": int(film_id) if film_id else None,
-        "film_title": film_title,
-        "licence_signed": licence_signed,
-        "licence_until": licence_until,
-        "rights_holder": rights_holder,
-        "notes": notes,
-        "updated_by": actor,
-    }
-    if row["film_id"] is not None:
-        # ux_licensing_film keeps one row per film
-        return (client().table("licensing")
-                .upsert(row, on_conflict="film_id").execute().data[0])
-    return client().table("licensing").insert(row).execute().data[0]
-
-
 # ------------------------------------------------------------------- screenings
 
 def screening_rows() -> List[dict]:

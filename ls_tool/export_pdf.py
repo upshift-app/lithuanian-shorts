@@ -234,8 +234,6 @@ def _criteria(req, lang) -> str:
                     f"{req.year_from or '...'}-{req.year_to or '...'}")
     bits.append(t(lang, "crit_limit", minutes=int(req.max_minutes),
                   min_films=req.min_films, max_films=req.max_films))
-    if req.licensed_only:
-        bits.append(t(lang, "crit_licensed"))
     return f"{t(lang, 'criteria')}: " + " | ".join(bits)
 
 
@@ -288,7 +286,7 @@ def programme_pdf(proposals: Sequence[Programme], alternates=(),
                   path: Optional[Path] = None, subtitle: Optional[str] = None,
                   lang: Optional[str] = None, notes: bool = True) -> Path:
     """One PDF per programme. ``notes=False`` leaves out the curatorial
-    apparatus - licence warnings and the like - for a document that goes out to
+    apparatus - the shortfall warnings and the like - for a document sent to
     a venue rather than around the office."""
     req = proposals[0].request if proposals else None
     lang = norm_lang(lang or (req.lang if req else DEFAULT_LANG))

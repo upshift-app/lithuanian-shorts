@@ -1,7 +1,7 @@
 """Curated programme generator.
 
 A programme is a set of short films that must satisfy hard constraints
-(count, total running time, licensing, year/genre filters) while maximising a
+(count, total running time, year/genre filters) while maximising a
 curatorial score built from:
 
   relevance  - how well each film matches the requested keywords / free text
@@ -45,7 +45,6 @@ class ProgrammeRequest:
     max_films: int = DEFAULT_MAX_FILMS
     max_minutes: float = DEFAULT_MAX_MINUTES
     min_minutes: float = 0.0
-    licensed_only: bool = False
     require_any_keyword: bool = False
     exclude_ids: List[int] = field(default_factory=list)
     pin_ids: List[int] = field(default_factory=list)   # films that must be included
@@ -108,12 +107,6 @@ class Programme:
                          limit=int(req.max_minutes)))
         if len(self.films) < req.min_films:
             out.append(t(lang, "w_too_few", n=len(self.films), wanted=req.min_films))
-        unsigned = [f.title for f in self.films if f.licence_signed is False]
-        if unsigned:
-            out.append(t(lang, "w_unsigned", films=", ".join(unsigned)))
-        unknown = [f.title for f in self.films if f.licence_signed is None]
-        if unknown and req.licensed_only is False:
-            out.append(t(lang, "w_unknown", films=", ".join(unknown)))
         missed = [k for k, ok in self.keyword_coverage().items() if not ok]
         if missed:
             out.append(t(lang, "w_missed_kw", keywords=", ".join(missed)))
@@ -290,7 +283,6 @@ def generate(catalog: Catalog, req: ProgrammeRequest, restarts: int = 800,
         year_to=req.year_to,
         max_duration=req.max_minutes,
         query=req.query,
-        licensed_only=req.licensed_only,
         require_any_keyword=req.require_any_keyword,
         exclude_ids=req.exclude_ids,
     )

@@ -343,7 +343,6 @@ def create_app() -> Flask:
             min_films=_int(request.form.get("min_films"), 5),
             max_films=_int(request.form.get("max_films"), 6),
             max_minutes=_float(request.form.get("max_minutes"), 90.0),
-            licensed_only=bool(request.form.get("licensed_only")),
             require_any_keyword=bool(request.form.get("strict_keywords")),
             exclude_ids=[int(x) for x in _split(request.form.get("exclude_ids"))
                          if x.isdigit()],

@@ -11,7 +11,6 @@ supabase/01_schema.sql:
     films_manual.json       -> films (source = 'manual')
     keyword_suggestions.json-> keyword_suggestions
     films_keywords.json     -> keyword_approvals
-    licensing.xlsx          -> licensing
     screenings.xlsx         -> screenings
 
 Safe to re-run: every table is upserted by its key, except screenings, which
@@ -28,9 +27,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from ls_tool import screenings as scr, store  # noqa: E402
-from ls_tool.config import (APPROVED_JSON, FILMS_JSON, LICENSING_XLSX,  # noqa: E402
+from ls_tool.config import (APPROVED_JSON, DATA_DIR, FILMS_JSON,  # noqa: E402
                             MANUAL_JSON, SUGGESTIONS_JSON)
-from ls_tool.licensing import load_licensing  # noqa: E402
 
 
 def _json(path, key, default):
@@ -93,35 +91,12 @@ def approvals() -> int:
     return len(rows)
 
 
-def licensing() -> int:
-    rows = load_licensing(LICENSING_XLSX)
-    n = 0
-    for row in rows:
-        if not row.get("film_id") and not row.get("film_title"):
-            continue
-        # A sheet row with nothing filled in carries no information; importing
-        # it would only create empty licence records.
-        if (row.get("licence_signed") is None and not row.get("licence_until")
-                and not row.get("rights_holder") and not row.get("notes")):
-            continue
-        try:
-            film_id = int(row["film_id"]) if row.get("film_id") else None
-        except (TypeError, ValueError):
-            film_id = None
-        store.licensing_set(film_id, row.get("film_title"),
-                            row.get("licence_signed"), row.get("licence_until"),
-                            row.get("rights_holder"), row.get("notes"))
-        n += 1
-    print("  licences: %d" % n)
-    return n
-
-
 def screenings() -> int:
     existing = store.screening_rows()
     if existing:
         print("  screenings: %d already in the database, skipped" % len(existing))
         return 0
-    rows = scr.load_from_xlsx(LICENSING_XLSX.parent / "screenings.xlsx")
+    rows = scr.load_from_xlsx(DATA_DIR / "screenings.xlsx")
     for row in rows:
         store.screening_add({
             "film_id": row.film_id,
@@ -146,7 +121,6 @@ def main() -> int:
     manual()
     suggestions()
     approvals()
-    licensing()
     screenings()
     print("done")
     return 0

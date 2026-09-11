@@ -1,4 +1,4 @@
-"""In-memory catalogue: loads the films from Supabase, merges licensing, filters."""
+"""In-memory catalogue: loads the films from Supabase, merges keywords, filters."""
 from __future__ import annotations
 
 import unicodedata
@@ -54,11 +54,6 @@ class Film:
     # "site" when the website tagged the film, "ai" when the keywords were
     # AI-suggested and approved in the review page
     keywords_source: str = "site"
-    # filled in from the licensing spreadsheet
-    licence_signed: Optional[bool] = None
-    licence_until: Optional[str] = None
-    rights_holder: Optional[str] = None
-    licence_notes: Optional[str] = None
 
     @property
     def display_title(self) -> str:
@@ -184,7 +179,6 @@ class Catalog:
         year_to: Optional[int] = None,
         max_duration: Optional[float] = None,
         query: Optional[str] = None,
-        licensed_only: bool = False,
         require_any_keyword: bool = False,
         exclude_ids: Iterable[int] = (),
     ) -> List[Film]:
@@ -211,8 +205,6 @@ class Catalog:
                 continue
             if wanted_cat and not ({fold(c) for c in f.categories} & wanted_cat):
                 continue
-            if licensed_only and f.licence_signed is not True:
-                continue
             if require_any_keyword and wanted_kw and not (f.kw_folded & wanted_kw):
                 continue
             if q_terms:
@@ -223,7 +215,7 @@ class Catalog:
         return out
 
 
-def load_catalog(with_licensing: bool = True) -> Catalog:
+def load_catalog() -> Catalog:
     """Read the whole archive from Supabase.
 
     Hand-entered films are rows in the same table with source = 'manual', so
@@ -246,8 +238,6 @@ def load_catalog(with_licensing: bool = True) -> Catalog:
         category_map=payload.get("category_map", {}),
     )
     apply_approved_keywords(cat)
-    if with_licensing:
-        apply_licensing(cat)
     return cat
 
 
@@ -275,36 +265,3 @@ def apply_approved_keywords(cat: "Catalog") -> int:
         film.__dict__.pop("_haystack", None)
         applied += 1
     return applied
-
-
-def apply_licensing(cat: Catalog) -> int:
-    """Merge the licensing table onto the catalogue. Returns rows matched."""
-    rows = store.licensing_rows()
-    if not rows:
-        return 0
-
-    by_id = {f.id: f for f in cat.films}
-    by_title = {}
-    for f in cat.films:
-        for t in (f.title, f.title_en):
-            if t:
-                by_title.setdefault(fold(t), f)
-
-    matched = 0
-    for row in rows:
-        film = None
-        if row.get("film_id"):
-            try:
-                film = by_id.get(int(row["film_id"]))
-            except (TypeError, ValueError):
-                film = None
-        if film is None and row.get("film_title"):
-            film = by_title.get(fold(row["film_title"]))
-        if film is None:
-            continue
-        film.licence_signed = row.get("licence_signed")
-        film.licence_until = row.get("licence_until")
-        film.rights_holder = row.get("rights_holder")
-        film.licence_notes = row.get("notes")
-        matched += 1
-    return matched

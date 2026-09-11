@@ -81,8 +81,6 @@ def _criteria(req, lang) -> str:
                     f"{req.year_from or '...'}-{req.year_to or '...'}")
     bits.append(t(lang, "crit_limit", minutes=int(req.max_minutes),
                   min_films=req.min_films, max_films=req.max_films))
-    if req.licensed_only:
-        bits.append(t(lang, "crit_licensed"))
     return f"{t(lang, 'criteria')}: " + " | ".join(bits)
 
 
@@ -166,13 +164,6 @@ def programme_docx(proposals: Sequence[Programme], alternates=(),
                 _para(doc, synopsis, size=10, space_after=4)
             if film.keywords:
                 _kv_line(doc, t(lang, "keywords"), ", ".join(film.keywords), size=9)
-            if film.licence_signed is not None:
-                _kv_line(doc, t(lang, "licence"),
-                         t(lang, "licence_yes" if film.licence_signed else "licence_no"),
-                         size=9)
-            url = film_url(film, lang)
-            if url:
-                _para(doc, url, size=8.5, color=MUTED, space_after=10)
             else:
                 doc.add_paragraph()
 

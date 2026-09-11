@@ -80,8 +80,6 @@ STRINGS = {
         "p_year_from": "Metai nuo",
         "p_year_to": "Metai iki",
         "p_variants": "Variantų skaičius",
-        "p_licensed_only": "Tik filmai su pasirašyta licencine sutartimi",
-        "p_strict_kw": "Tik filmai, turintys bent vieną pasirinktą raktažodį",
         "p_pin": "Būtinai įtraukti (filmų ID)",
         "p_pin_ph": "pvz. 22005, 21877",
         "p_exclude": "Neįtraukti (filmų ID)",
@@ -129,9 +127,6 @@ STRINGS = {
         "h_year_to": "Vėliausi filmo metai. Tuščia - iki naujausio archyve.",
         "h_variants": "Kiek skirtingų programos variantų parodyti. "
                       "\u201eVisi\u201c - tiek, kiek pavyks sudaryti (iki 8).",
-        "h_licensed_only": "Palikti tik filmus su pasirašyta licencine sutartimi. "
-                           "Licencijų lentelė kol kas tuščia, todėl pažymėjus "
-                           "greičiausiai neliks nė vieno filmo.",
         "h_strict_kw": "Į atranką patenka tik filmai, turintys bent vieną iš "
                        "pažymėtų raktažodžių. Be varnelės raktažodžiai tik kelia "
                        "filmus aukščiau.",
@@ -223,10 +218,6 @@ STRINGS = {
         "a_search_btn": "Ieškoti",
         "a_found": "Rasta {n} filmų.",
         "a_showing": "Rasta {n} filmų, rodomi pirmieji {shown}.",
-        "a_licence": "Licencija",
-        "a_lic_yes": "pasirašyta",
-        "a_lic_no": "ne",
-        "a_actions": "Veiksmai",
         "a_add": "Pridėti filmą",
         "a_manual": "pridėtas ranka",
         "a_edit": "Redaguoti",
@@ -388,8 +379,6 @@ STRINGS = {
         "p_year_from": "Year from",
         "p_year_to": "Year to",
         "p_variants": "Number of options",
-        "p_licensed_only": "Only films with a signed licence agreement",
-        "p_strict_kw": "Only films carrying at least one selected keyword",
         "p_pin": "Always include (film IDs)",
         "p_pin_ph": "e.g. 22005, 21877",
         "p_exclude": "Exclude (film IDs)",
@@ -441,9 +430,6 @@ STRINGS = {
                      "the archive.",
         "h_variants": "How many different programmes to propose. \u201cAll\u201d "
                       "gives every one that can be built, up to 8.",
-        "h_licensed_only": "Keep only films with a signed licence agreement. The "
-                           "licensing table is empty at the moment, so ticking "
-                           "this will probably leave no films at all.",
         "h_strict_kw": "Only films carrying at least one of the ticked keywords "
                        "are considered. Without this, keywords merely pull films "
                        "up the ranking.",
@@ -532,10 +518,6 @@ STRINGS = {
         "a_search_btn": "Search",
         "a_found": "{n} films found.",
         "a_showing": "{n} films found, showing the first {shown}.",
-        "a_licence": "Licence",
-        "a_lic_yes": "signed",
-        "a_lic_no": "no",
-        "a_actions": "Actions",
         "a_add": "Add film",
         "a_manual": "added by hand",
         "a_edit": "Edit",
