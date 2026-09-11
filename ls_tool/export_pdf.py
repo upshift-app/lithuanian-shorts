@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import io
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
@@ -83,6 +84,10 @@ LOGO = ASSETS_DIR / "logo.png"
 LOGO_WIDTH = 48 * mm
 STILL_WIDTH = 46 * mm
 STILL_MAX_BYTES = 4 * 1024 * 1024
+# A programme can carry a dozen stills and the whole export has to fit inside a
+# serverless request, so downloading gives up once the budget is spent.
+STILL_TIMEOUT = 4
+STILL_BUDGET = 20
 _STILL_CACHE: Dict[str, Optional[bytes]] = {}
 
 
@@ -107,7 +112,9 @@ def _still_bytes(url: str) -> Optional[bytes]:
     data = None
     try:
         import requests
-        response = requests.get(url, timeout=6, stream=True)
+        from .scraper import HEADERS  # the site's WAF rejects the default UA
+        response = requests.get(url, timeout=STILL_TIMEOUT, stream=True,
+                                headers=HEADERS)
         response.raise_for_status()
         if response.headers.get("content-type", "").startswith("image/"):
             payload = response.raw.read(STILL_MAX_BYTES + 1, decode_content=True)
@@ -119,9 +126,11 @@ def _still_bytes(url: str) -> Optional[bytes]:
     return data
 
 
-def _still(film) -> Optional[Image]:
+def _still(film, deadline: Optional[float] = None) -> Optional[Image]:
     url = getattr(film, "image", None)
     if not url or not str(url).startswith(("http://", "https://")):
+        return None
+    if deadline is not None and time.monotonic() > deadline and str(url) not in _STILL_CACHE:
         return None
     data = _still_bytes(str(url))
     if not data:
@@ -248,7 +257,7 @@ def _build_programme(story, path: Path, title: str):
 
 
 def _film_block(film, lang: str, st, text_width: float, still_width: float,
-                gap: float):
+                gap: float, deadline: Optional[float] = None):
     """Title, credits and synopsis on the left, the film still on the right."""
     text = [Paragraph(_esc(_headline(film, lang)), st["film_title"])]
     meta = _film_meta(film, lang)
@@ -259,7 +268,7 @@ def _film_block(film, lang: str, st, text_width: float, still_width: float,
         text.append(Spacer(1, 9))
         text.append(Paragraph(_esc(synopsis), st["body"]))
 
-    still = _still(film)
+    still = _still(film, deadline)
     if still is None:
         return KeepTogether(text)
 
@@ -289,6 +298,8 @@ def programme_pdf(proposals: Sequence[Programme], alternates=(),
     text_width = content_width - STILL_WIDTH - gap
 
     heading = (req.title if req and req.title else None) or t(lang, "programme_title")
+
+    deadline = time.monotonic() + STILL_BUDGET
 
     story: List = []
     logo = _logo()
@@ -325,7 +336,8 @@ def programme_pdf(proposals: Sequence[Programme], alternates=(),
         for n, film in enumerate(prog.films, 1):
             if n > 1:
                 story.append(Spacer(1, 18))
-            story.append(_film_block(film, lang, st, text_width, STILL_WIDTH, gap))
+            story.append(_film_block(film, lang, st, text_width, STILL_WIDTH,
+                                     gap, deadline))
 
         warnings = prog.warnings(lang)
         if warnings:

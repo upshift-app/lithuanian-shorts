@@ -344,7 +344,8 @@ def create_app() -> Flask:
         store.document_put(token, "programme", {
             "request": _request_json(req),
             "proposals": [_programme_json(p) for p in proposals],
-            "alternates": [_programme_json(p) for p in alternates],
+            # alternates are individual films, not programmes
+            "alternates": [f.id for f in alternates],
         }, actor=auth.current_user()["id"])
 
         ctx.update({
@@ -367,8 +368,9 @@ def create_app() -> Flask:
         req = _request_from_json(payload["request"])
         cat = catalog()
         proposals = [_programme_from_json(p, cat, req) for p in payload["proposals"]]
-        alternates = [_programme_from_json(p, cat, req)
-                      for p in payload.get("alternates") or []]
+        alternates = [f for f in (cat.by_id(i)
+                                  for i in payload.get("alternates") or [])
+                      if f is not None]
         if not proposals:
             abort(404)
         lang = req.lang
