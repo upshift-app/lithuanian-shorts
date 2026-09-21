@@ -80,6 +80,7 @@ def _criteria(req, lang) -> str:
         bits.append(f"{t(lang, 'crit_years')}: "
                     f"{req.year_from or '...'}-{req.year_to or '...'}")
     bits.append(t(lang, "crit_limit", minutes=int(req.max_minutes),
+                  min_minutes=int(req.min_minutes or 0),
                   min_films=req.min_films, max_films=req.max_films))
     return f"{t(lang, 'criteria')}: " + " | ".join(bits)
 
@@ -97,6 +98,10 @@ def programme_docx(proposals: Sequence[Programme], alternates=(),
 
     heading = (req.title if req and req.title else None) or t(lang, "programme_title")
 
+    # The same "prepared by" header the PDF carries above its logo.
+    _para(doc, t(lang, "prepared_by"), size=9, bold=True, color=ACCENT,
+          space_after=0)
+    _para(doc, t(lang, "agency"), size=10, color=ACCENT, space_after=10)
     _para(doc, t(lang, "brand"), size=8.5, bold=True, color=MUTED, space_after=2)
     _para(doc, heading, size=22, bold=True, color=ACCENT, space_after=2)
     if subtitle or (req and req.occasion):

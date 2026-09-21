@@ -76,6 +76,11 @@ def _programme_styles():
                                      textColor=INK, leading=13),
         "note": ParagraphStyle("p_note", fontName=regular, fontSize=9,
                                textColor=MUTED, leading=12),
+        # the "prepared by" block that sits above the logo
+        "by_label": ParagraphStyle("p_by_label", fontName=bold, fontSize=9,
+                                   textColor=INK, leading=12),
+        "by_name": ParagraphStyle("p_by_name", fontName=regular, fontSize=10,
+                                  textColor=INK, leading=13, spaceAfter=6),
         "_fonts": (regular, bold),
     }
 
@@ -83,6 +88,10 @@ def _programme_styles():
 LOGO = ASSETS_DIR / "logo.png"
 LOGO_WIDTH = 48 * mm
 STILL_WIDTH = 46 * mm
+# Every still prints at the same size. The source images come in all shapes, so
+# they are centre-cropped to this ratio instead of being stretched into it.
+STILL_RATIO = 3 / 2.0
+STILL_HEIGHT = STILL_WIDTH / STILL_RATIO
 STILL_MAX_BYTES = 4 * 1024 * 1024
 # A programme can carry a dozen stills and the whole export has to fit inside a
 # serverless request, so downloading gives up once the budget is spent.
@@ -136,14 +145,41 @@ def _still(film, deadline: Optional[float] = None) -> Optional[Image]:
     if not data:
         return None
     try:
-        from reportlab.lib.utils import ImageReader
-        width, height = ImageReader(io.BytesIO(data)).getSize()
-        still = Image(io.BytesIO(data), width=STILL_WIDTH,
-                      height=STILL_WIDTH * height / float(width))
+        still = Image(_cropped(data), width=STILL_WIDTH, height=STILL_HEIGHT)
         still.hAlign = "RIGHT"
         return still
     except Exception:
         return None
+
+
+def _cropped(data: bytes) -> io.BytesIO:
+    """Centre-crop an image to STILL_RATIO, so every still prints identically.
+
+    Without Pillow the bytes are handed over untouched and ReportLab scales
+    them into the box - which is the stretching we are avoiding, but it is
+    still better than dropping the image.
+    """
+    try:
+        from PIL import Image as PILImage
+    except ImportError:
+        return io.BytesIO(data)
+
+    img = PILImage.open(io.BytesIO(data))
+    img = img.convert("RGB")
+    width, height = img.size
+    if width / float(height) > STILL_RATIO:      # too wide: trim left and right
+        keep = int(round(height * STILL_RATIO))
+        left = (width - keep) // 2
+        img = img.crop((left, 0, left + keep, height))
+    else:                                        # too tall: trim top and bottom
+        keep = int(round(width / STILL_RATIO))
+        top = (height - keep) // 2
+        img = img.crop((0, top, width, top + keep))
+
+    out = io.BytesIO()
+    img.save(out, format="JPEG", quality=88)
+    out.seek(0)
+    return out
 
 
 def _headline(film, lang: str) -> str:
@@ -233,6 +269,7 @@ def _criteria(req, lang) -> str:
         bits.append(f"{t(lang, 'crit_years')}: "
                     f"{req.year_from or '...'}-{req.year_to or '...'}")
     bits.append(t(lang, "crit_limit", minutes=int(req.max_minutes),
+                  min_minutes=int(req.min_minutes or 0),
                   min_films=req.min_films, max_films=req.max_films))
     return f"{t(lang, 'criteria')}: " + " | ".join(bits)
 
@@ -303,9 +340,14 @@ def programme_pdf(proposals: Sequence[Programme], alternates=(),
     deadline = time.monotonic() + STILL_BUDGET
 
     story: List = []
+    # Who prepared the proposal, named above the logo, as the agency asked.
+    story += [Paragraph(t(lang, "prepared_by"), st["by_label"]),
+              Paragraph(t(lang, "agency"), st["by_name"])]
     logo = _logo()
     if logo is not None:
         story += [logo, Spacer(1, 14 * mm)]
+    else:
+        story.append(Spacer(1, 10 * mm))
 
     for idx, prog in enumerate(proposals, 1):
         if idx > 1:

@@ -427,3 +427,59 @@ def totals(reports: Sequence[FilmReport]) -> Dict[str, float]:
         "screenings": sum(r.total_screenings for r in reports),
         "revenue": round(sum(r.total_revenue for r in reports), 2),
     }
+
+
+# ---------------------------------------------------------------- sample report
+
+# A worked example of the report, so the shape of the document can be shown to
+# a partner before the real log has anything in it. Everything here is
+# invented: the festivals, the dates and every euro.
+SAMPLE_EVENTS = [
+    ("Clermont-Ferrand International Short Film Festival",
+     "Maison de la Culture", "Clermont-Ferrand", "Prancūzija", 2, 250.0,
+     "Baltijos programa"),
+    ("Tampere Film Festival", "Plevna 1", "Tampere", "Suomija", 1, 180.0, None),
+    ("Vilnius Short Film Festival", "Skalvija", "Vilnius", "Lietuva", 3, 120.0,
+     "Nacionalinis konkursas"),
+    ("Go Short", "LUX", "Nijmegen", "Nyderlandai", 1, 200.0, None),
+    ("Kaunas International Film Festival", "Romuva", "Kaunas", "Lietuva", 2,
+     150.0, None),
+    ("Uppsala Short Film Festival", "Fyrisbiografen", "Uppsala", "Švedija", 1,
+     190.0, None),
+]
+
+
+def sample_screenings(catalog: Optional[Catalog] = None,
+                      films: int = 4) -> List[Screening]:
+    """Invented screening rows for a demonstration report.
+
+    Real archive films are used when a catalogue is available, so the example
+    reads like the finished thing; the screenings attached to them never
+    happened.
+    """
+    chosen = []
+    if catalog:
+        chosen = [f for f in catalog.films
+                  if f.director and f.year and f.duration_min][:films]
+    titles = [(f.id, f.display_title) for f in chosen] or [
+        (None, "Filmo pavadinimas %d" % n) for n in range(1, films + 1)]
+
+    start = _dt.date.today().replace(month=1, day=14)
+    rows: List[Screening] = []
+    for i, (film_id, title) in enumerate(titles):
+        for j, (event, venue, city, country, count, fee, programme) in enumerate(
+                SAMPLE_EVENTS[i: i + 3] or SAMPLE_EVENTS[:3]):
+            rows.append(Screening(
+                film_id=film_id,
+                film_title=title,
+                event=event,
+                venue=venue,
+                city=city,
+                country=country,
+                date=start + _dt.timedelta(days=37 * i + 21 * j),
+                screenings=count,
+                fee_eur=fee,
+                programme=programme,
+                notes=None,
+            ))
+    return rows

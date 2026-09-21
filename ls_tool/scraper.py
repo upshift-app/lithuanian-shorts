@@ -293,8 +293,39 @@ def normalise(post: dict, page: dict, tag_names: Dict[int, str],
 # -------------------------------------------------------------------------- main
 
 def scrape(force: bool = False, workers: int = 8, limit: Optional[int] = None,
-           with_english: bool = True, progress=print) -> List[dict]:
+           with_english: bool = True, progress=print,
+           reuse_translations: bool = False,
+           max_new: Optional[int] = None,
+           deadline_seconds: Optional[float] = None,
+           stats: Optional[Dict] = None) -> List[dict]:
+    """Bring the database in line with the site.
+
+    ``reuse_translations`` keeps the English keyword names already stored and
+    asks the site only about terms it has never seen, ``max_new`` caps how many
+    film pages one run fetches, and ``deadline_seconds`` stops fetching once
+    that much time has passed. All three exist for the scheduled sync, which
+    has to finish inside a serverless request; a full run from the command line
+    uses none of them.
+
+    Whatever was fetched before the deadline is still saved, and the films that
+    were skipped simply look unchanged to the next run, so the archive catches
+    up over successive runs instead of losing the work. ``stats``, if given, is
+    filled in with what this run managed - the web button reports it, so the
+    team can see whether anything is still waiting.
+    """
+    started = time.monotonic()
     sess = _session()
+
+    # What we already hold, so only films the site actually changed get fetched.
+    payload: dict = {}
+    cached: Dict[int, dict] = {}
+    try:
+        payload = store.load_catalog_payload()
+    except Exception as e:          # an empty or unreachable database
+        progress("  (no cached archive: %s)" % e)
+    if not force:
+        cached = {f["id"]: f for f in payload.get("films", [])
+                  if f.get("source") == "site"}
 
     progress("Fetching taxonomies ...")
     tag_names = fetch_taxonomy(sess, "tags")
@@ -304,10 +335,21 @@ def scrape(force: bool = False, workers: int = 8, limit: Optional[int] = None,
     tag_names_en: Dict[int, str] = {}
     cat_names_en: Dict[int, str] = {}
     if with_english:
-        progress("Fetching English taxonomy names ...")
-        tag_names_en = fetch_taxonomy_translated(sess, "tags", tag_names, workers=workers)
-        cat_names_en = fetch_taxonomy_translated(sess, "kategorija", cat_names,
-                                                 workers=workers)
+        known_kw = payload.get("keyword_map") or {}
+        known_cat = payload.get("category_map") or {}
+        if reuse_translations:
+            tag_names_en = {i: known_kw[n] for i, n in tag_names.items()
+                            if n in known_kw}
+            cat_names_en = {i: known_cat[n] for i, n in cat_names.items()
+                            if n in known_cat}
+        todo_tags = [i for i in tag_names if i not in tag_names_en]
+        todo_cats = [i for i in cat_names if i not in cat_names_en]
+        progress("Fetching English taxonomy names (%d keywords, %d categories) ..."
+                 % (len(todo_tags), len(todo_cats)))
+        tag_names_en.update(fetch_taxonomy_translated(sess, "tags", todo_tags,
+                                                      workers=workers))
+        cat_names_en.update(fetch_taxonomy_translated(sess, "kategorija", todo_cats,
+                                                      workers=workers))
         progress("  %d/%d keywords and %d/%d categories translated"
                  % (len(tag_names_en), len(tag_names),
                     len(cat_names_en), len(cat_names)))
@@ -318,20 +360,19 @@ def scrape(force: bool = False, workers: int = 8, limit: Optional[int] = None,
         posts = posts[:limit]
     progress("  %d films in the archive" % len(posts))
 
-    # What we already hold, so only films the site actually changed get fetched.
-    cached: Dict[int, dict] = {}
-    if not force:
-        try:
-            cached = {f["id"]: f
-                      for f in store.load_catalog_payload().get("films", [])
-                      if f.get("source") == "site"}
-        except Exception as e:      # an empty or unreachable database: full scrape
-            progress("  (no cached archive: %s)" % e)
-            cached = {}
-
-    todo = [p for p in posts
-            if p["id"] not in cached
-            or cached[p["id"]].get("wp_modified") != p.get("modified")]
+    changed = [p for p in posts
+               if p["id"] not in cached
+               or cached[p["id"]].get("wp_modified") != p.get("modified")]
+    todo = changed
+    # Newest first, so a capped run picks up the films that were just added.
+    todo.sort(key=lambda p: p.get("date") or "", reverse=True)
+    if max_new is not None and len(todo) > max_new:
+        progress("  %d changed films, fetching the %d newest this run"
+                 % (len(todo), max_new))
+        todo = todo[:max_new]
+    if stats is not None:
+        stats.update(total=len(posts), changed=len(changed), fetched=0,
+                     remaining=len(changed))
     progress("  %d unchanged (reused), %d to fetch" % (len(posts) - len(todo), len(todo)))
 
     results: Dict[int, dict] = {p["id"]: cached[p["id"]] for p in posts if p["id"] in cached}
@@ -365,6 +406,8 @@ def scrape(force: bool = False, workers: int = 8, limit: Optional[int] = None,
         return None
 
     def work(post: dict) -> Optional[dict]:
+        if deadline_seconds is not None                 and time.monotonic() - started > deadline_seconds:
+            return None
         html = _get(post["link"])
         if html is None:
             progress("  ! failed: %s" % post["link"])
@@ -389,6 +432,11 @@ def scrape(force: bool = False, workers: int = 8, limit: Optional[int] = None,
             for film in pool.map(work, todo):
                 if film:
                     results[film["id"]] = film
+        if deadline_seconds is not None and done[0] < len(todo):
+            progress("  ! stopped at the %ds budget: %d of %d fetched, the rest "
+                     "next run" % (deadline_seconds, done[0], len(todo)))
+    if stats is not None:
+        stats.update(fetched=done[0], remaining=max(len(changed) - done[0], 0))
 
     films = [results[p["id"]] for p in posts if p["id"] in results]
     meta = {

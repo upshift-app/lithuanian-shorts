@@ -42,6 +42,7 @@ Supabase SQL redaktoriuje paleiskite iš eilės:
 | `sql/02_auth.sql` | vartotojai ir prisijungimo funkcijos |
 | `sql/03_rls.sql` | RLS — viešieji raktai nemato nieko |
 | `sql/04_seed_admin.sql` | pirmasis administratorius (pakeiskite el. paštą ir slaptažodį) |
+| `sql/05_keepalive.sql` | lentelė, į kurią rašo kasdienis „nemiegok" signalas |
 
 Seni failai iš `data/` perkeliami vieną kartą:
 
@@ -55,9 +56,46 @@ python migrate_to_supabase.py
 python run.py scrape
 ```
 
-Paleidžiama kompiuteryje arba pagal tvarkaraštį — rezultatas įrašomas į tą pačią
-duomenų bazę, tad internetinis įrankis jį pamato iš karto. Serveryje to daryti
-negalima: 435 filmų perkrovimas trunka minutes, o užklausa nutraukiama anksčiau.
+Paleidžiama kompiuteryje — rezultatas įrašomas į tą pačią duomenų bazę, tad
+internetinis įrankis jį pamato iš karto. Viso archyvo perkrovimas trunka
+minutes, todėl serveryje vienu kartu to daryti negalima.
+
+Kad nauji svetainės filmai atsirastų patys, Vercel kas pirmadienį 4:00 kviečia
+`/api/sync-films`. Tai tas pats atnaujinimas, tik pritaikytas serveriui: jau
+turimi raktažodžių vertimai panaudojami pakartotinai, o per vieną kartą paimama
+iki 40 naujausių pasikeitusių filmų (ir ne ilgiau kaip 120 sek.) — kas nespėta,
+pasiimama kito paleidimo metu. Išmatuota su tikra svetaine: paleidimas be naujų
+filmų trunka ~8 sek., su 12 naujų — ~10 sek.
+
+Nelaukti savaitės nebūtina: skiltyje **Archyvas** yra mygtukas **„Atnaujinti iš
+svetainės"** — jis daro tą patį čia ir dabar, parodo, kiek filmų perimta, ir
+jei kažkas nespėta, kiek liko (tada spaudžiama dar kartą). Ten pat matyti ir
+kada archyvas atnaujintas paskutinį kartą. Iš komandinės eilutės tą patį daro
+`python run.py scrape`, o `--force` perkrauna visus filmus nuo nulio.
+
+## Kad Supabase neužmigtų
+
+Nemokamas Supabase projektas sustabdomas, jei savaitę negauna „pakankamai
+duomenų bazės veiklos" — dokumentacijoje tai apibūdinta kaip *keli kreipimaisi
+per dieną*. Anksčiau signalas buvo siunčiamas du kartus per savaitę ir tik
+skaitė vieną eilutę; to nepakako ir 2026-09-21 projektas buvo sustabdytas.
+
+Dabar:
+
+- Vercel kviečia `/api/keepalive` **kasdien** (9:00; Hobby plane cron'as
+  paleidžiamas tos valandos bėgyje);
+- signalas ne tik skaito, bet ir **rašo** į `keepalive` lentelę, o joje lieka
+  paskutinio sėkmingo kreipimosi laikas ir bendras skaičius;
+- tą patį adresą kasdien kviečia ir GitHub Actions
+  (`.github/workflows/keepalive.yml`) — nepriklausomas antras signalas, kuris,
+  jei nepavyksta, **atsiunčia laišką**. Vercel cron'o klaida nematoma niekur,
+  išskyrus logus, todėl ir nepastebėjome.
+
+Reikia dviejų GitHub repozitorijos „secrets": `KEEPALIVE_URL`
+(`https://<adresas>/api/keepalive`) ir `CRON_SECRET` (toks pat kaip Vercel).
+
+Jei projektas vis dėlto sustabdomas, jį reikia atstatyti ranka Supabase
+skydelyje („unpause"); duomenys 90 dienų niekur nedingsta.
 
 ## Paleidimas internete (Vercel)
 
@@ -98,12 +136,14 @@ Skiltis **Programos**. Pasirenkate:
 
 - **temą** — raktažodžius (iš tų pačių 150 svetainės raktažodžių), laisvo teksto
   paiešką, žanrą;
-- **apribojimus** — filmų skaičių (numatyta 5–6), maksimalią bendrą trukmę
-  (numatyta 90 min), metų intervalą;
+- **apribojimus** — filmų skaičių (numatyta 5–6), bendros trukmės intervalą
+  (numatyta 75–90 min), metų intervalą;
 - **konkrečius filmus**, kuriuos būtina įtraukti arba atmesti (pagal ID).
 
-Įrankis pateikia **1–5 skirtingus programos variantus**. Bendra trukmė niekada
-neviršija nurodytos ribos — tai griežtas apribojimas.
+Įrankis pateikia **1–5 skirtingus programos variantus**. Viršutinė trukmės riba
+griežta — bendra trukmė jos niekada neviršija; apatinė yra tikslas: programa
+renkama taip, kad pakliūtų į intervalą, o jei nepavyksta, dokumente atsiranda
+pastaba. Nereikia apatinės ribos — įrašykite 0.
 
 Kaip ir prašėte, po variantų pateikiamas sąrašas **„Taip pat tematiškai tiktų“** —
 filmai, kurie atitinka temą, bet netilpo į trukmės limitą.
@@ -114,7 +154,7 @@ Kiekvienas variantas vertinamas pagal keturis rodiklius:
 |---|---|
 | Atitikimas | kiek filmo raktažodžiai sutampa su užklausa |
 | Padengimas | ar programa paliečia visus prašytus raktažodžius |
-| Trukmė | kaip gerai išnaudojamas turimas laikas (neviršijant ribos) |
+| Trukmė | ar bendra trukmė pakliūva į nurodytą intervalą |
 | Dermė | ar nesikartoja režisieriai, ar išlaikyta žanrų, metų ir trukmių įvairovė |
 
 Dokumente pateikiama: programos lentelė, kiekvieno filmo anotacija ir metaduomenys,
@@ -157,6 +197,11 @@ Ataskaitą galima filtruoti pagal filmą, režisierių ir datų intervalą — t
 rengti ataskaitą vienam kūrėjui apie jo filmą. PDF ir Word atsisiunčiate patys
 ir siunčiate, kam reikia.
 
+Skiltyje **Ataskaitos** yra ir **pavyzdys** (PDF / Word) — tikri archyvo filmai
+su išgalvotais rodymais, datomis ir sumomis. Skirtas parodyti dokumento formą,
+kol tikrų rodymų dar neįvesta; dokumento viršuje aiškiai parašyta, kad duomenys
+netikri.
+
 ```bash
 python run.py report --director "Vardas Pavardė" --date-from 2025-01-01 --lang en
 ```
@@ -176,6 +221,17 @@ python run.py report --director "Vardas Pavardė" --date-from 2025-01-01 --lang 
 
 Iš komandinės eilutės sugeneruoti dokumentai išsaugomi kataloge `output/`;
 web įrankyje jie atsisiunčiami tiesiai iš naršyklės.
+
+---
+
+## Šriftai
+
+Programos pasiūlymas renkamas serifiniu šriftu. Pirmenybė — **Times New Roman**
+(kompiuteryje jis yra), paskui **Liberation Serif**, o jei nė vieno nėra —
+**DejaVu Serif**. Vercel serveryje sisteminių šriftų nėra, todėl ten naudojamas
+DejaVu Serif. Norint, kad ir internete dokumentas atrodytų kaip Times, į
+`ls_tool/assets/fonts/` reikia įdėti keturis `LiberationSerif-*.ttf` failus
+(jis Times atitinka raidė į raidę) — daugiau nieko keisti nereikia.
 
 ---
 

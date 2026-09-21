@@ -58,6 +58,7 @@ def cmd_programme(args):
         min_films=args.min_films,
         max_films=args.max_films,
         max_minutes=args.max_minutes,
+        min_minutes=args.min_minutes,
         require_any_keyword=args.strict_keywords,
         exclude_ids=[int(x) for x in _split(args.exclude)],
         pin_ids=[int(x) for x in _split(args.pin)],
@@ -232,6 +233,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-films", type=int, default=5)
     s.add_argument("--max-films", type=int, default=6)
     s.add_argument("--max-minutes", type=float, default=90)
+    s.add_argument("--min-minutes", type=float, default=75,
+                   help="trumpiausia bendra trukmė; 0 - be apatinės ribos")
     s.add_argument("--strict-keywords", action="store_true",
                    help="įtraukti tik filmus, turinčius bent vieną iš raktažodžių")
     s.add_argument("--exclude", help="filmų ID, kurių neįtraukti")

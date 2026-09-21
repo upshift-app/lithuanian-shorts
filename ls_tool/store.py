@@ -122,6 +122,33 @@ def record_scrape(films: int, ok: bool = True, note: Optional[str] = None) -> No
     }).execute()
 
 
+# ------------------------------------------------------------------- keepalive
+
+def keepalive_ping(source: Optional[str] = None) -> dict:
+    """Write, then read. Returns the stored row.
+
+    Supabase pauses a Free plan project that has not seen "sufficient user
+    database activity" for a week, and a read alone twice a week turned out not
+    to count (the project was paused on 2026-09-21). This does a real write
+    every day and leaves the result behind, so a ping that stopped working is
+    visible in the table itself.
+    """
+    now = _dt.datetime.now(_dt.timezone.utc).isoformat()
+    row = (client().table("keepalive").select("pings")
+           .eq("id", 1).execute().data)
+    pings = int(row[0]["pings"]) + 1 if row else 1
+    written = (client().table("keepalive").upsert({
+        "id": 1, "pinged_at": now, "last_ok": now, "pings": pings,
+        "source": source, "note": None,
+    }).execute().data)
+    return written[0] if written else {"pinged_at": now, "pings": pings}
+
+
+def keepalive_state() -> Optional[dict]:
+    rows = client().table("keepalive").select("*").eq("id", 1).execute().data
+    return rows[0] if rows else None
+
+
 def last_scrape() -> Optional[dict]:
     rows = (client().table("scrape_runs").select("*")
             .order("started_at", desc=True).limit(1).execute().data)

@@ -16,6 +16,9 @@ FILM_POST_TYPE = "filmas"
 DEFAULT_MIN_FILMS = 5
 DEFAULT_MAX_FILMS = 6
 DEFAULT_MAX_MINUTES = 90
+# A programme does not have to run the full 90 minutes - anything inside the
+# window counts as a good fit, and only the upper bound is a hard limit.
+DEFAULT_MIN_MINUTES = 75
 
 # True on Vercel, where the bundle is read-only and only /tmp accepts writes.
 SERVERLESS = bool(os.environ.get("VERCEL")

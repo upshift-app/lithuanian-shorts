@@ -76,6 +76,7 @@ STRINGS = {
         "p_limits": "Apribojimai",
         "p_films_from": "Filmų nuo",
         "p_films_to": "Filmų iki",
+        "p_min_minutes": "Min. trukmė (min)",
         "p_max_minutes": "Maks. trukmė (min)",
         "p_year_from": "Metai nuo",
         "p_year_to": "Metai iki",
@@ -120,6 +121,11 @@ STRINGS = {
         "h_films_from": "Mažiausias filmų skaičius programoje. Jei tiek "
                         "nesusidaro, dokumente atsiranda pastaba.",
         "h_films_to": "Didžiausias filmų skaičius programoje.",
+        "h_min_minutes": "Trumpiausia priimtina bendra programos trukmė. Kartu "
+                         "su maksimalia sudaro intervalą (pvz. 75-90 min): "
+                         "programa renkama taip, kad pakliūtų į jį, o "
+                         "nepasiekusi apatinės ribos gauna pastabą. Įrašykite "
+                         "0, jei apatinės ribos nereikia.",
         "h_max_minutes": "Bendros trukmės riba minutėmis. Ilgesni filmai iškrenta "
                          "iš karto, o programa renkama taip, kad kuo geriau "
                          "užpildytų šį laiką.",
@@ -148,6 +154,12 @@ STRINGS = {
         "r_title": "Filmų rodymų ataskaita",
         "r_lede": "Kur ir kada filmas rodytas, kiek kartų ir kokias pajamas surinko. "
                   "Duomenys imami iš rodymų žurnalo.",
+        "r_sample": "Atsisiųsti pavyzdį",
+        "r_sample_hint": "Ataskaitos pavyzdys su išgalvotais rodymais - "
+                         "parodyti, kaip atrodo dokumentas.",
+        "r_sample_title": "PAVYZDYS: filmų rodymų ataskaita",
+        "r_sample_note": "Pavyzdinis dokumentas - rodymai, datos ir sumos "
+                         "išgalvoti.",
         "r_sheet_error": "Lentelės klaida:",
         "r_empty": "Dar neįrašytas nė vienas rodymas",
         "r_empty_body": "Ataskaita sudaroma iš rodymų žurnalo. Įrašykite pirmąjį "
@@ -211,6 +223,14 @@ STRINGS = {
 
         # ------------------------------------------------------ archive page
         "a_title": "Filmų archyvas",
+        "a_sync": "Atnaujinti iš svetainės",
+        "a_sync_hint": "Paima visus naujus ir pasikeitusius lithuanianshorts.com "
+                       "filmus. Tai daroma ir automatiškai kartą per savaitę.",
+        "a_sync_last": "Paskutinį kartą atnaujinta {at}.",
+        "a_synced": "Archyvas atnaujintas: perimta filmų — {fetched}, archyve iš "
+                    "viso — {total}.",
+        "a_sync_more": "Liko {n}: paspauskite dar kartą.",
+        "a_sync_failed": "Atnaujinti nepavyko:",
         "a_lede": "Vietinė svetainės archyvo kopija. Filmo ID reikalingas, kai norite "
                   "filmą būtinai įtraukti į programą arba iš jos pašalinti.",
         "a_search": "Paieška",
@@ -375,6 +395,7 @@ STRINGS = {
         "p_limits": "Limits",
         "p_films_from": "Films from",
         "p_films_to": "Films up to",
+        "p_min_minutes": "Min running time (min)",
         "p_max_minutes": "Max running time (min)",
         "p_year_from": "Year from",
         "p_year_to": "Year to",
@@ -421,6 +442,11 @@ STRINGS = {
         "h_films_from": "The fewest films the programme may contain. If that many "
                         "cannot be found, the document says so in a note.",
         "h_films_to": "The most films the programme may contain.",
+        "h_min_minutes": "The shortest acceptable total running time. Together "
+                         "with the maximum it forms a window (say 75-90 min): "
+                         "the programme is built to land inside it, and a "
+                         "programme that falls short carries a note. Enter 0 "
+                         "for no lower bound.",
         "h_max_minutes": "The running-time limit in minutes. Longer films drop "
                          "out immediately, and the programme is built to use as "
                          "much of this slot as it can.",
@@ -450,6 +476,12 @@ STRINGS = {
         "r_title": "Film screening report",
         "r_lede": "Where and when a film screened, how many times, and what it earned. "
                   "Data comes from the screening log.",
+        "r_sample": "Download a sample",
+        "r_sample_hint": "A sample report built from invented screenings, to "
+                         "show what the document looks like.",
+        "r_sample_title": "SAMPLE: film screening report",
+        "r_sample_note": "Specimen document - the screenings, dates and "
+                         "figures are invented.",
         "r_sheet_error": "Spreadsheet error:",
         "r_empty": "No screenings logged yet",
         "r_empty_body": "Reports are built from the screening log. Add the first "
@@ -511,6 +543,15 @@ STRINGS = {
         "s_to_reports": "Build a report",
 
         "a_title": "Film archive",
+        "a_sync": "Update from the site",
+        "a_sync_hint": "Pulls every new and changed film from "
+                       "lithuanianshorts.com. This also happens automatically "
+                       "once a week.",
+        "a_sync_last": "Last updated {at}.",
+        "a_synced": "Archive updated: {fetched} films pulled in, {total} in the "
+                    "archive.",
+        "a_sync_more": "{n} still waiting: press the button again.",
+        "a_sync_failed": "The update failed:",
         "a_lede": "A local copy of the site archive. You need a film ID to pin a film "
                   "into a programme or to exclude it.",
         "a_search": "Search",

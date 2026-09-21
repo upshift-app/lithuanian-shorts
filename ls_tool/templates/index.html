@@ -118,6 +118,11 @@
              value="{{ form.get('max_films','6') }}">
     </div>
     <div>
+      <label for="min_minutes">{{ ui('p_min_minutes') }} {{ info('h_min_minutes') }}</label>
+      <input type="number" id="min_minutes" name="min_minutes" min="0" max="400"
+             value="{{ form.get('min_minutes','75') }}">
+    </div>
+    <div>
       <label for="max_minutes">{{ ui('p_max_minutes') }} {{ info('h_max_minutes') }}</label>
       <input type="number" id="max_minutes" name="max_minutes" min="10" max="400"
              value="{{ form.get('max_minutes','90') }}">

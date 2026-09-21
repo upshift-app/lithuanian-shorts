@@ -8,8 +8,28 @@
     <h1>{{ ui('a_title') }}</h1>
     <p class="lede">{{ ui('a_lede') }}</p>
   </div>
-  <a class="btn" href="{{ url_for('film_new') }}">{{ ui('a_add') }}</a>
+  <div class="row" style="gap:8px">
+    <form method="post" action="{{ url_for('sync_now') }}" style="margin:0">
+      <button type="submit" class="btn ghost">{{ ui('a_sync') }}</button>
+    </form>
+    <a class="btn" href="{{ url_for('film_new') }}">{{ ui('a_add') }}</a>
+  </div>
 </div>
+<p class="small muted" style="margin:-4px 0 12px">
+  {{ ui('a_sync_hint') }}
+  {% if catalog.scraped_at %}{{ ui('a_sync_last', at=catalog.scraped_at[:16]|replace('T',' ')) }}{% endif %}
+</p>
+
+{% if sync %}
+  {% if sync.ok %}
+    <div class="note" style="border-left-color:var(--ok);background:#f1f8f4">
+      {{ ui('a_synced', fetched=sync.fetched, total=sync.total) }}
+      {% if sync.remaining %} {{ ui('a_sync_more', n=sync.remaining) }}{% endif %}
+    </div>
+  {% else %}
+    <div class="err"><strong>{{ ui('a_sync_failed') }}</strong> {{ sync.detail }}</div>
+  {% endif %}
+{% endif %}
 
 {% if notice %}
   <div class="note" style="border-left-color:var(--ok);background:#f1f8f4">

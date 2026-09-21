@@ -17,9 +17,20 @@
     <p class="small muted" style="margin:8px 0 0">{{ ui('r_fee_note') }}</p>
     <div class="actions">
       <a class="btn" href="{{ url_for('screening_log') }}">{{ ui('s_add') }}</a>
+      <a class="btn ghost" href="{{ url_for('sample_report', fmt='pdf', lang=ui_lang) }}">
+        {{ ui('r_sample') }} (PDF)</a>
+      <a class="btn ghost" href="{{ url_for('sample_report', fmt='docx', lang=ui_lang) }}">
+        {{ ui('r_sample') }} (Word)</a>
     </div>
+    <p class="small muted" style="margin:8px 0 0">{{ ui('r_sample_hint') }}</p>
   </div>
 {% else %}
+
+<p class="small muted">
+  {{ ui('r_sample_hint') }}
+  <a href="{{ url_for('sample_report', fmt='pdf', lang=ui_lang) }}">PDF</a> ·
+  <a href="{{ url_for('sample_report', fmt='docx', lang=ui_lang) }}">Word</a>
+</p>
 
 <form method="post">
 <div class="card">

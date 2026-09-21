@@ -3,6 +3,8 @@ beautifulsoup4>=4.11
 lxml>=4.9
 python-docx>=0.8.11
 reportlab>=3.6
+# used to centre-crop film stills so every image prints at the same size
+pillow>=9.0
 openpyxl>=3.1
 Flask>=2.2
 supabase>=2.4

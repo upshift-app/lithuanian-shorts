@@ -6,7 +6,7 @@ curatorial score built from:
 
   relevance  - how well each film matches the requested keywords / free text
   coverage   - how many of the requested keywords the programme touches at all
-  fit        - how well the total running time uses the available slot
+  fit        - whether the total running time lands inside the requested window
   flow       - diversity of directors, genres and years, plus a sane run of lengths
 
 Search is a randomised greedy build followed by local swap improvement, repeated
@@ -21,7 +21,8 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from .catalog import Catalog, Film, fold
 from .i18n import runtime_label, t
-from .config import DEFAULT_MAX_FILMS, DEFAULT_MAX_MINUTES, DEFAULT_MIN_FILMS
+from .config import (DEFAULT_MAX_FILMS, DEFAULT_MAX_MINUTES,
+                     DEFAULT_MIN_FILMS, DEFAULT_MIN_MINUTES)
 
 # Upper bound on how many distinct programmes we ever return for "All".
 MAX_PROPOSALS = 8
@@ -44,7 +45,10 @@ class ProgrammeRequest:
     min_films: int = DEFAULT_MIN_FILMS
     max_films: int = DEFAULT_MAX_FILMS
     max_minutes: float = DEFAULT_MAX_MINUTES
-    min_minutes: float = 0.0
+    # The programme is aimed at the window min_minutes..max_minutes. Only the
+    # upper bound is hard; falling short of the lower one costs score and
+    # raises a note, so a 76-minute programme is a perfectly good answer.
+    min_minutes: float = DEFAULT_MIN_MINUTES
     require_any_keyword: bool = False
     exclude_ids: List[int] = field(default_factory=list)
     pin_ids: List[int] = field(default_factory=list)   # films that must be included
@@ -61,6 +65,9 @@ class ProgrammeRequest:
             self.min_films, self.max_films = self.max_films, self.min_films
         self.min_films = max(1, self.min_films)
         self.max_films = max(self.min_films, self.max_films)
+        if self.min_minutes and self.min_minutes > self.max_minutes:
+            self.min_minutes, self.max_minutes = self.max_minutes, self.min_minutes
+        self.min_minutes = max(0.0, float(self.min_minutes or 0.0))
         return self
 
 
@@ -105,6 +112,9 @@ class Programme:
         if self.total_minutes > req.max_minutes:
             out.append(t(lang, "w_over_time", runtime=self.runtime(lang),
                          limit=int(req.max_minutes)))
+        if req.min_minutes and self.total_minutes < req.min_minutes:
+            out.append(t(lang, "w_under_time", runtime=self.runtime(lang),
+                         low=int(req.min_minutes), high=int(req.max_minutes)))
         if len(self.films) < req.min_films:
             out.append(t(lang, "w_too_few", n=len(self.films), wanted=req.min_films))
         missed = [k for k, ok in self.keyword_coverage().items() if not ok]
@@ -163,13 +173,15 @@ def score_programme(films: Sequence[Film], req: ProgrammeRequest,
     else:
         coverage = 1.0
 
-    # Fit: reward using the slot well, punish overrun hard (it is a hard limit).
+    # Fit: anywhere inside [min_minutes, max_minutes] is a full-marks answer;
+    # below the window the score falls off with the shortfall, above it the
+    # programme is invalid.
     if total > req.max_minutes:
         fit = -5.0
+    elif req.min_minutes and total < req.min_minutes:
+        fit = 1.0 - 1.5 * (req.min_minutes - total) / req.min_minutes
     else:
-        fit = total / req.max_minutes
-        if req.min_minutes and total < req.min_minutes:
-            fit -= 0.5
+        fit = 1.0
 
     # Flow: no director twice, a spread of genres and years, varied lengths.
     directors = [f.director_folded for f in films if f.director]
@@ -205,6 +217,10 @@ def _build_one(pool: List[Film], req: ProgrammeRequest, rel: Dict[int, float],
     chosen = list(pinned)
     used = {f.id for f in chosen}
     budget = req.max_minutes - sum(f.duration for f in chosen)
+    # Aim somewhere inside the requested window, not always at the ceiling.
+    aim = (rng.uniform(req.min_minutes, req.max_minutes)
+           if req.min_minutes else req.max_minutes)
+    aim_left = aim - sum(f.duration for f in chosen)
     target = rng.randint(req.min_films, req.max_films)
 
     while len(chosen) < target:
@@ -213,7 +229,7 @@ def _build_one(pool: List[Film], req: ProgrammeRequest, rel: Dict[int, float],
             break
         remaining_slots = target - len(chosen)
         # Prefer films that leave room for the slots still to fill.
-        avg_needed = budget / max(remaining_slots, 1)
+        avg_needed = max(aim_left, 1.0) / max(remaining_slots, 1)
 
         def desirability(f: Film) -> float:
             d = rel.get(f.id, 0.0)
@@ -229,6 +245,7 @@ def _build_one(pool: List[Film], req: ProgrammeRequest, rel: Dict[int, float],
         chosen.append(pick)
         used.add(pick.id)
         budget -= pick.duration
+        aim_left -= pick.duration
 
     return chosen
 
@@ -305,21 +322,29 @@ def generate(catalog: Catalog, req: ProgrammeRequest, restarts: int = 800,
     if not pool:
         return [], [], []
 
-    # Phase 1: many cheap randomised builds.
+    # Phase 1: many cheap randomised builds. Builds that land inside the
+    # requested running-time window are kept apart, so a programme that merely
+    # fits under the ceiling is only used when nothing reaches the window.
     built_seen: Dict[Tuple[int, ...], Tuple[float, List[Film]]] = {}
+    in_window: Dict[Tuple[int, ...], Tuple[float, List[Film]]] = {}
     for _ in range(restarts):
         built = _build_one(pool, req, rel, rng, pinned)
         if len(built) < req.min_films:
             continue
-        if sum(f.duration for f in built) > req.max_minutes:
+        minutes = sum(f.duration for f in built)
+        if minutes > req.max_minutes:
             continue
         s, _parts = score_programme(built, req, rel)
         key = tuple(sorted(f.id for f in built))
         if key not in built_seen or s > built_seen[key][0]:
             built_seen[key] = (s, built)
+        if minutes >= req.min_minutes:
+            if key not in in_window or s > in_window[key][0]:
+                in_window[key] = (s, built)
 
     # Phase 2: local swap improvement, only on the most promising builds.
-    top = sorted(built_seen.values(), key=lambda sv: -sv[0])[:improve_top]
+    source = in_window or built_seen
+    top = sorted(source.values(), key=lambda sv: -sv[0])[:improve_top]
     seen: Dict[Tuple[int, ...], Programme] = {}
     for _s, built in top:
         refined = _improve(built, pool, req, rel, pinned_ids)

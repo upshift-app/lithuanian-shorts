@@ -1,0 +1,38 @@
+# A second, independent daily ping of the database.
+#
+# Vercel already calls /api/keepalive on a schedule, but when that stops working
+# it says so nowhere: a failed cron is a line in the Vercel log that nobody
+# reads, and the first sign of trouble is Supabase pausing the project - which
+# is exactly what happened on 2026-09-21. GitHub Actions emails the repository
+# owner when a workflow fails, so this run is both a backup ping and the alarm.
+#
+# Repository secrets (Settings -> Secrets and variables -> Actions):
+#   KEEPALIVE_URL  https://<deployment>/api/keepalive
+#   CRON_SECRET    the same value as the Vercel environment variable, if set
+name: keepalive
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the database through the app
+        env:
+          KEEPALIVE_URL: ${{ secrets.KEEPALIVE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEEPALIVE_URL}" ]; then
+            echo "KEEPALIVE_URL secret is not set"; exit 1
+          fi
+          body=$(curl -sS --max-time 60 --retry 3 --retry-delay 30 \
+                   --fail-with-body \
+                   -H "Authorization: Bearer ${CRON_SECRET}" \
+                   "${KEEPALIVE_URL}?source=github")
+          echo "$body"
+          # The endpoint answers 200 only when the write went through.
+          echo "$body" | grep -q '"ok": *true'

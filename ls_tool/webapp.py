@@ -18,7 +18,7 @@ from flask import (Flask, abort, g, jsonify, make_response, redirect,
                    render_template, request, send_file, session, url_for)
 from werkzeug.datastructures import MultiDict
 
-from . import auth, enrich, export_docx, export_pdf, manual_films
+from . import auth, enrich, export_docx, export_pdf, manual_films, scraper
 from . import screenings as scr
 from . import store
 from .catalog import fold, load_catalog
@@ -31,6 +31,22 @@ from .programme import MAX_PROPOSALS, Programme, ProgrammeRequest, generate
 # "generate" and "download" clicks goes through the database, because on Vercel
 # the two requests can be served by different instances.
 SESSION_DAYS = 14
+
+# Scheduled sync: how many changed film pages one run fetches, and how many at
+# a time. Measured against the live site: ~0.37s per film at 6 workers, so 40
+# films is around 20s - far inside the 300s a Vercel function may run.
+SYNC_MAX_NEW = 40
+SYNC_WORKERS = 6
+# A run with 12 new films measured ~10s against the live site, and Hobby
+# functions may run for 300s, so this is only a floor under the worst case:
+# whatever has been fetched by then is saved, and the rest arrives next run.
+SYNC_BUDGET_SECONDS = 120
+
+# The same sync started by hand from the archive page. The team is waiting on
+# the answer, so it takes a bigger bite and a longer budget; whatever it does
+# not reach is reported back and picked up by pressing the button again.
+MANUAL_MAX_NEW = 60
+MANUAL_BUDGET_SECONDS = 200
 
 
 def _split(value):
@@ -343,6 +359,7 @@ def create_app() -> Flask:
             min_films=_int(request.form.get("min_films"), 5),
             max_films=_int(request.form.get("max_films"), 6),
             max_minutes=_float(request.form.get("max_minutes"), 90.0),
+            min_minutes=_float(request.form.get("min_minutes"), 75.0),
             require_any_keyword=bool(request.form.get("strict_keywords")),
             exclude_ids=[int(x) for x in _split(request.form.get("exclude_ids"))
                          if x.isdigit()],
@@ -394,24 +411,76 @@ def create_app() -> Flask:
 
     @app.route("/api/keepalive")
     def keepalive():
-        """Touched by a Vercel cron job twice a week.
+        """Touched by a Vercel cron job every day.
 
-        A free Supabase project is paused after a week without traffic, which
-        would take the archive offline until someone restored it by hand. One
-        cheap read is enough to count as activity. Public on purpose: cron
-        invocations carry no session and do not follow redirects, so a login
-        redirect here would silently do nothing.
+        A free Supabase project is paused after a week without "sufficient user
+        database activity", which takes the archive offline until someone
+        restores it by hand. This ran twice a week and read a single row, and
+        that was not enough - the project was paused on 2026-09-21 - so it now
+        runs daily and writes as well as reads. Supabase describes the
+        threshold as a few requests to the database each day.
+
+        Public on purpose: cron invocations carry no session and do not follow
+        redirects, so a login redirect here would silently do nothing.
         """
         secret = os.environ.get("CRON_SECRET")
-        if secret and request.headers.get("Authorization") != f"Bearer {secret}":
+        expected = f"Bearer {secret}"
+        if secret and request.headers.get("Authorization") != expected and (
+                request.args.get("key") != secret):
             return jsonify({"error": "unauthorized"}), 401
+        answer = {"at": _dt.datetime.utcnow().isoformat(timespec="seconds")}
         try:
             rows = (store.client().table("films").select("id")
                     .limit(1).execute().data)
+            answer["films_reachable"] = bool(rows)
         except Exception as e:  # the point is to report it, not to crash
             return jsonify({"ok": False, "error": str(e)[:200]}), 502
-        return jsonify({"ok": True, "films_reachable": bool(rows),
-                        "at": _dt.datetime.utcnow().isoformat(timespec="seconds")})
+        try:
+            state = store.keepalive_ping(source=request.args.get("source") or "cron")
+            answer["pings"] = state.get("pings")
+        except Exception as e:
+            # Reaching the database is what matters; the write is how we prove
+            # it. A missing table (sql/05_keepalive.sql not run yet) should say
+            # so rather than raise a false alarm through the failure alert.
+            answer["wrote"] = False
+            answer["note"] = str(e)[:200]
+        return jsonify(dict(ok=True, **answer))
+
+    @app.route("/api/sync-films", methods=["GET", "POST"])
+    def sync_films():
+        """Pull films the site has added or changed into the archive.
+
+        Run by a Vercel cron job once a week, so a film published on
+        lithuanianshorts.com turns up in the tool by itself. A serverless
+        request cannot afford a full 435-film scrape, so this run reuses the
+        keyword translations already stored and fetches at most SYNC_MAX_NEW
+        film pages; anything left over is picked up by the next run. The same
+        work can always be done in one go with `python run.py scrape`.
+
+        Public for the same reason as keepalive - a cron invocation carries no
+        session. Protected by CRON_SECRET when that is set, and by ?key= for a
+        run started by hand.
+        """
+        secret = os.environ.get("CRON_SECRET")
+        expected = f"Bearer {secret}"
+        if secret and request.headers.get("Authorization") != expected and (
+                request.args.get("key") != secret):
+            return jsonify({"error": "unauthorized"}), 401
+
+        log: list = []
+        try:
+            films = scraper.scrape(workers=SYNC_WORKERS, progress=log.append,
+                                   reuse_translations=True,
+                                   max_new=SYNC_MAX_NEW,
+                                   deadline_seconds=SYNC_BUDGET_SECONDS)
+        except Exception as e:
+            try:
+                store.record_scrape(0, ok=False, note=str(e)[:400])
+            except Exception:
+                pass
+            return jsonify({"ok": False, "error": str(e)[:300], "log": log}), 502
+        catalog(refresh=True)
+        return jsonify({"ok": True, "films": len(films), "log": log})
 
     @app.route("/describe/<token>", methods=["POST"])
     def describe(token):
@@ -613,6 +682,27 @@ def create_app() -> Flask:
             path = export_pdf.report_pdf(built, **kwargs)
         return send_file(str(path), as_attachment=True, download_name=path.name)
 
+    @app.route("/reports/sample.<fmt>")
+    def sample_report(fmt):
+        """A worked example of the report, built from invented screenings.
+
+        The team is asked for a specimen before the real log has anything
+        worth sending; this produces one from real archive films and made-up
+        festivals, clearly marked as such on the document itself.
+        """
+        if fmt not in ("docx", "pdf"):
+            abort(404)
+        lang = norm_lang(request.args.get("lang") or ui_lang())
+        built = scr.build_reports(scr.sample_screenings(catalog()), catalog())
+        kwargs = dict(title=ui_string(lang, "r_sample_title"),
+                      recipient=ui_string(lang, "r_sample_note"),
+                      period=None, lang=lang)
+        if fmt == "docx":
+            path = export_docx.report_docx(built, **kwargs)
+        else:
+            path = export_pdf.report_pdf(built, **kwargs)
+        return send_file(str(path), as_attachment=True, download_name=path.name)
+
     # --------------------------------------------------------------- archive
     @app.route("/films")
     def films():
@@ -626,9 +716,18 @@ def create_app() -> Flask:
         msg = request.args.get("msg")
         notice = {"added": "nf_added", "updated": "nf_updated",
                   "deleted": "nf_deleted"}.get(msg)
+        sync = None
+        if msg == "synced":
+            sync = {"ok": True,
+                    "fetched": _int(request.args.get("fetched"), 0),
+                    "total": _int(request.args.get("total"), 0),
+                    "remaining": _int(request.args.get("remaining"), 0)}
+        elif msg == "sync_failed":
+            sync = {"ok": False, "detail": request.args.get("detail") or ""}
         return render_template("films.html", catalog=cat, films=results[:300],
                                q=q or "", total=len(results),
-                               shown=min(300, len(results)), notice=notice)
+                               shown=min(300, len(results)), notice=notice,
+                               sync=sync)
 
     # ------------------------------------------- AI keyword review
     PER_PAGE = 20
@@ -820,14 +919,42 @@ def create_app() -> Flask:
         catalog(refresh=True)
         return redirect(url_for("films", msg="deleted"))
 
+    @app.route("/films/sync", methods=["POST"])
+    def sync_now():
+        """Pull new and changed films from the site, on request.
+
+        The same job the weekly cron runs, but started from the archive page
+        when the team does not want to wait for Monday. Films are upserted, so
+        pressing it twice changes nothing; if more films changed than one run
+        can fetch, the page says how many are left and the button picks them up.
+        """
+        stats: Dict = {}
+        try:
+            scraper.scrape(workers=SYNC_WORKERS, progress=lambda _m: None,
+                           reuse_translations=True, max_new=MANUAL_MAX_NEW,
+                           deadline_seconds=MANUAL_BUDGET_SECONDS, stats=stats)
+        except Exception as e:
+            try:
+                store.record_scrape(0, ok=False, note=str(e)[:400])
+            except Exception:
+                pass
+            return redirect(url_for("films", msg="sync_failed",
+                                    detail=str(e)[:160]))
+        catalog(refresh=True)
+        return redirect(url_for("films", msg="synced",
+                                fetched=stats.get("fetched", 0),
+                                total=stats.get("total", 0),
+                                remaining=stats.get("remaining", 0)))
+
     @app.route("/refresh", methods=["POST"])
     def refresh():
         """Re-read the archive from the database.
 
         The scrape itself is not run here on purpose: pulling 435 films takes
-        minutes and a serverless request is killed long before that. Run
-        `python run.py scrape` on a machine (or a scheduled job) - it writes to
-        the same database, and this button picks the result up.
+        minutes and a serverless request is killed long before that. New and
+        changed films arrive through the weekly /api/sync-films cron, or from
+        `python run.py scrape` on a machine; both write to the same database,
+        and this button picks the result up.
         """
         catalog(refresh=True)
         return redirect(url_for("index"))
