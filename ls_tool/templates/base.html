@@ -49,6 +49,14 @@
   .chk{display:flex;align-items:center;gap:7px;font-size:13px;
        text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink)}
   .chk input{width:auto}
+  /* A checkbox that stands on its own gets a field-sized frame, so it does not
+     float loose between the bordered inputs above and below it. */
+  .chkfield{display:inline-flex;align-items:center;gap:9px;cursor:pointer;
+            border:1px solid var(--line);border-radius:5px;background:#fff;
+            padding:9px 12px;margin:0}
+  .chkfield:hover{border-color:#999}
+  .chkfield:focus-within{outline:2px solid #111;outline-offset:-1px}
+  .chkfield input{width:16px;height:16px;margin:0;accent-color:#111;cursor:pointer}
   button,.btn{background:#111;color:#fff;border:0;border-radius:5px;
               padding:10px 18px;font:inherit;font-weight:600;cursor:pointer;
               text-decoration:none;display:inline-block}
