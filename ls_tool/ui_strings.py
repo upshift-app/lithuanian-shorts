@@ -237,7 +237,9 @@ STRINGS = {
         # ------------------------------------------------------ archive page
         "a_title": "Filmų archyvas",
         "a_sync": "Atnaujinti iš svetainės",
-        "a_syncing": "Atnaujinama, tai gali užtrukti iki kelių minučių...",
+        "a_syncing": "Atnaujinama...",
+        "a_sync_wait_title": "Atnaujinama iš svetainės.",
+        "a_sync_wait": "Tai trunka 1-3 minutes. Neuždarykite ir neperkraukite šio puslapio, kol nepasirodys rezultatas.",
         "a_sync_hint": "Paima visus naujus ir pasikeitusius lithuanianshorts.com "
                        "filmus. Tai daroma ir automatiškai kartą per savaitę.",
         "a_sync_last": "Paskutinį kartą atnaujinta {at}.",
@@ -571,7 +573,9 @@ STRINGS = {
 
         "a_title": "Film archive",
         "a_sync": "Update from the site",
-        "a_syncing": "Updating, this can take a few minutes...",
+        "a_syncing": "Updating...",
+        "a_sync_wait_title": "Updating from the site.",
+        "a_sync_wait": "This takes 1-3 minutes. Do not close or reload this page until the result appears.",
         "a_sync_hint": "Pulls every new and changed film from "
                        "lithuanianshorts.com. This also happens automatically "
                        "once a week.",

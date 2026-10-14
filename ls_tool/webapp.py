@@ -1008,7 +1008,7 @@ def create_app() -> Flask:
             except Exception:
                 pass
             return redirect(url_for("films", msg="sync_failed",
-                                    detail=str(e)[:160]))
+                                    detail=str(e)[:600]))
         catalog(refresh=True)
         return redirect(url_for("films", msg="synced",
                                 fetched=stats.get("fetched", 0),
