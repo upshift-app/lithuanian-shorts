@@ -233,12 +233,20 @@ def screening_add(data: Dict, actor: Optional[str] = None) -> dict:
         "notes": data.get("notes") or None,
         "created_by": actor,
     }
+    if data.get("batch_id"):       # only set for a programme, see 07 migration
+        row["batch_id"] = str(data["batch_id"])
     return client().table("screenings").insert(row).execute().data[0]
 
 
 def screening_delete(screening_id: int) -> bool:
     result = (client().table("screenings").delete()
               .eq("id", int(screening_id)).execute().data)
+    return bool(result)
+
+
+def screening_delete_batch(batch_id: str) -> bool:
+    result = (client().table("screenings").delete()
+              .eq("batch_id", str(batch_id)).execute().data)
     return bool(result)
 
 

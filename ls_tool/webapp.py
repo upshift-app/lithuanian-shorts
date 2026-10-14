@@ -627,9 +627,11 @@ def create_app() -> Flask:
                     share = round(fee / len(films_in), 2)
                     shares = [share] * len(films_in)
                     shares[0] = round(fee - share * (len(films_in) - 1), 2)
+                    batch = uuid.uuid4().hex
                     for f, part in zip(films_in, shares):
                         scr.append_screening(dict(
-                            common, film_id=f.id, film_title=f.title,
+                            common, batch_id=batch,
+                            film_id=f.id, film_title=f.title,
                             fee_eur=part,
                             programme=programme or saved["title"]), actor=actor)
                 else:
@@ -649,11 +651,24 @@ def create_app() -> Flask:
             rows, error = [], str(e)
 
         # newest first: the row just added is the one the user wants to see
-        entries = []
+        entries, by_batch = [], {}
         for row in sorted(rows, key=lambda r: (r.date or _dt.date.min, r.row or 0),
                           reverse=True):
             film = cat.by_id(row.film_id) if row.film_id else None
-            entries.append({"row": row, "film": film})
+            item = {"row": row, "film": film}
+            if row.batch_id:
+                # A programme logged in one go is one line with its films
+                # folded inside; the rows share a screening count, and the
+                # revenue is what the films' shares add up to.
+                if row.batch_id in by_batch:
+                    group = by_batch[row.batch_id]
+                    group["items"].append(item)
+                    group["revenue"] = round(group["revenue"] + row.revenue, 2)
+                    continue
+                item = {"row": row, "film": film, "items": [item],
+                        "revenue": row.revenue}
+                by_batch[row.batch_id] = item
+            entries.append(item)
 
         return render_template(
             "screenings.html", catalog=cat,
@@ -661,14 +676,22 @@ def create_app() -> Flask:
             saved_programmes=_saved_programmes_or_empty(),
             entries=entries, error=error, errors=errors, form=form,
             notice={"added": "s_added", "deleted": "s_deleted"}.get(notice),
-            totals={"n": len(rows),
-                    "s": sum(int(r.screenings or 1) for r in rows),
+            totals={"n": len(entries),
+                    "s": sum(int(e["row"].screenings or 1) for e in entries),
                     "v": round(sum(r.revenue for r in rows), 2)},
         )
 
     @app.route("/screenings/<int:screening_id>/delete", methods=["POST"])
     def screening_delete(screening_id):
         if not scr.delete_screening(screening_id):
+            abort(404)
+        return redirect(url_for("screening_log", msg="deleted"))
+
+    @app.route("/screenings/batch/<batch_id>/delete", methods=["POST"])
+    def screening_batch_delete(batch_id):
+        if not re.fullmatch(r"[0-9a-f-]{32,36}", batch_id):
+            abort(404)
+        if not scr.delete_batch(batch_id):
             abort(404)
         return redirect(url_for("screening_log", msg="deleted"))
 
