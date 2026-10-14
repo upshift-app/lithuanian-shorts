@@ -655,11 +655,23 @@ def create_app() -> Flask:
             film = cat.by_id(row.film_id) if row.film_id else None
             entries.append({"row": row, "film": film})
 
+        # One line per date; its screenings fold open underneath.
+        days = []
+        for entry in entries:
+            if not days or days[-1]["date"] != entry["row"].date:
+                days.append({"date": entry["row"].date, "entries": []})
+            days[-1]["entries"].append(entry)
+        for day in days:
+            rows_ = [e["row"] for e in day["entries"]]
+            day["screenings"] = sum(int(r.screenings or 1) for r in rows_)
+            day["revenue"] = round(sum(r.revenue for r in rows_), 2)
+            day["events"] = list(dict.fromkeys(r.event for r in rows_ if r.event))
+
         return render_template(
             "screenings.html", catalog=cat,
             films=sorted(cat.films, key=lambda f: (f.title or "").lower()),
             saved_programmes=_saved_programmes_or_empty(),
-            entries=entries, error=error, errors=errors, form=form,
+            entries=entries, days=days, error=error, errors=errors, form=form,
             notice={"added": "s_added", "deleted": "s_deleted"}.get(notice),
             totals={"n": len(rows),
                     "s": sum(int(r.screenings or 1) for r in rows),

@@ -123,10 +123,24 @@
           <th></th></tr>
     </thead>
     <tbody>
-    {% for e in entries %}
+    {% for day in days %}
+      {% set multi = day.entries|length > 1 %}
+      {% set loop_id = loop.index %}
+      {% if multi %}
+      <tr class="day-head" data-toggle="{{ loop_id }}" style="cursor:pointer">
+        <td><span class="caret">&#9656;</span> <strong>{{ day.entries[0].row.date_label or '-' }}</strong></td>
+        <td>{{ day.entries|length }} {{ ui('s_screenings_n') }}</td>
+        <td>{{ day.events|join(', ') or '-' }}</td>
+        <td></td>
+        <td class="num">{{ day.screenings }}</td>
+        <td class="num">{{ day.revenue|eur }}</td>
+        <td></td>
+      </tr>
+      {% endif %}
+      {% for e in day.entries %}
       {% set s = e.row %}
-      <tr>
-        <td>{{ s.date_label or '-' }}</td>
+      <tr class="{{ 'day-child' if multi }}" {% if multi %}data-day="{{ loop_id }}" hidden{% endif %}>
+        <td>{% if not multi %}{{ s.date_label or '-' }}{% endif %}</td>
         <td>{{ ftitle(e.film) if e.film else s.film_title }}
           {% if not e.film %}<div class="muted small">{{ ui('r_no_films') }}</div>{% endif %}</td>
         <td>{{ s.event or '-' }}
@@ -141,9 +155,25 @@
           </form>
         </td>
       </tr>
+      {% endfor %}
     {% endfor %}
     </tbody>
   </table>
   {% endif %}
 </div>
+
+<script>
+// A date with several screenings is one line; clicking it folds them open.
+(function () {
+  Array.prototype.slice.call(document.querySelectorAll('tr.day-head')).forEach(function (head) {
+    head.addEventListener('click', function () {
+      var id = head.dataset.toggle;
+      var rows = document.querySelectorAll('tr[data-day="' + id + '"]');
+      var open = head.classList.toggle('open');
+      head.querySelector('.caret').innerHTML = open ? '&#9662;' : '&#9656;';
+      Array.prototype.slice.call(rows).forEach(function (r) { r.hidden = !open; });
+    });
+  });
+})();
+</script>
 {% endblock %}
