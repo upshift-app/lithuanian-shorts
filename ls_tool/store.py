@@ -242,6 +242,12 @@ def screening_delete(screening_id: int) -> bool:
     return bool(result)
 
 
+def screening_delete_many(ids: List[int]) -> bool:
+    result = (client().table("screenings").delete()
+              .in_("id", [int(i) for i in ids]).execute().data)
+    return bool(result)
+
+
 # ------------------------------------------------------- saved programmes
 
 def saved_programmes() -> List[dict]:

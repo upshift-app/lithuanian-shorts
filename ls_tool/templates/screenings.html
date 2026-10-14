@@ -134,7 +134,14 @@
         <td></td>
         <td class="num">{{ day.screenings }}</td>
         <td class="num">{{ day.revenue|eur }}</td>
-        <td></td>
+        <td class="num">
+          <form method="post" action="{{ url_for('screening_day_delete') }}"
+                onclick="event.stopPropagation()"
+                onsubmit="return confirm({{ ui('s_delete_day_confirm', n=day.entries|length)|tojson }})">
+            <input type="hidden" name="ids" value="{{ day.entries|map(attribute='row.row')|join(',') }}">
+            <button type="submit" class="linklike">{{ ui('s_delete_day') }}</button>
+          </form>
+        </td>
       </tr>
       {% endif %}
       {% for e in day.entries %}

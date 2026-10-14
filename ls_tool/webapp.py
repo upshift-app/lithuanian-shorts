@@ -684,6 +684,14 @@ def create_app() -> Flask:
             abort(404)
         return redirect(url_for("screening_log", msg="deleted"))
 
+    @app.route("/screenings/delete-day", methods=["POST"])
+    def screening_day_delete():
+        """Delete every screening of one date line at once."""
+        ids = [int(x) for x in _split(request.form.get("ids")) if x.isdigit()]
+        if not ids or not scr.delete_many(ids):
+            abort(404)
+        return redirect(url_for("screening_log", msg="deleted"))
+
     # --------------------------------------------------------------- reports
     @app.route("/reports", methods=["GET", "POST"])
     def reports():
