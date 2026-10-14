@@ -321,10 +321,12 @@ def _film_block(film, lang: str, st, text_width: float, still_width: float,
 
 def programme_pdf(proposals: Sequence[Programme], alternates=(),
                   path: Optional[Path] = None, subtitle: Optional[str] = None,
-                  lang: Optional[str] = None, notes: bool = True) -> Path:
+                  lang: Optional[str] = None, notes: bool = True,
+                  film_gap: float = 18) -> Path:
     """One PDF per programme. ``notes=False`` leaves out the curatorial
     apparatus - the shortfall warnings and the like - for a document sent to
-    a venue rather than around the office."""
+    a venue rather than around the office. ``film_gap`` is the space in points
+    between two films."""
     req = proposals[0].request if proposals else None
     lang = norm_lang(lang or (req.lang if req else DEFAULT_LANG))
 
@@ -378,7 +380,7 @@ def programme_pdf(proposals: Sequence[Programme], alternates=(),
 
         for n, film in enumerate(prog.films, 1):
             if n > 1:
-                story.append(Spacer(1, 18))
+                story.append(Spacer(1, film_gap))
             story.append(_film_block(film, lang, st, text_width, STILL_WIDTH,
                                      gap, deadline))
 
@@ -411,7 +413,7 @@ def programme_pdf(proposals: Sequence[Programme], alternates=(),
 def report_pdf(reports: Sequence[FilmReport], path: Optional[Path] = None,
                title: Optional[str] = None, period: Optional[str] = None,
                recipient: Optional[str] = None,
-               lang: Optional[str] = None) -> Path:
+               lang: Optional[str] = None, film_gap: float = 14) -> Path:
     lang = norm_lang(lang)
     title = title or t(lang, "report_title")
 
@@ -481,7 +483,7 @@ def report_pdf(reports: Sequence[FilmReport], path: Optional[Path] = None,
         widths = [content_width * w for w in (0.13, 0.32, 0.29, 0.11, 0.15)]
         table = Table(rows, colWidths=widths, repeatRows=1)
         table.setStyle(_table_style(bold))
-        block += [table, Spacer(1, 14)]
+        block += [table, Spacer(1, film_gap)]
 
         if len(report.screenings) <= 8:
             story.append(KeepTogether(block))

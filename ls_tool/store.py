@@ -96,6 +96,10 @@ def save_catalog(films: List[dict], meta: dict) -> int:
         row = {k: raw.get(k) for k in FILM_COLUMNS if k in raw}
         row["id"] = int(raw["id"])
         row["source"] = "site"
+        # A freshly scraped film has no such key, and in a batch that mixes new
+        # and cached films the missing one is sent as null, which the column
+        # refuses. Cached films keep their own value (e.g. 'ai').
+        row["keywords_source"] = raw.get("keywords_source") or "site"
         row["scraped_at"] = now
         for key in ("keywords", "keywords_en", "categories", "categories_en",
                     "contacts"):

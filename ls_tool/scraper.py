@@ -288,6 +288,12 @@ def normalise(post: dict, page: dict, tag_names: Dict[int, str],
             if not film.get(field):
                 film[field] = crew_en.get(en)
 
+    # the site writes co-credits as "A , B"
+    for field in ("director", "producer", "writer", "cinematographer", "editor",
+                  "sound", "composer"):
+        if film.get(field):
+            film[field] = re.sub(r"\s+,", ",", film[field])
+
     film["duration_raw"] = film.get("duration")
     film["duration_min"] = parse_duration(film.get("duration_raw"))
     film.pop("duration", None)
