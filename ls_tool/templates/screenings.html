@@ -128,7 +128,7 @@
       {% set loop_id = loop.index %}
       {% if multi %}
       <tr class="day-head" data-toggle="{{ loop_id }}" style="cursor:pointer">
-        <td><span class="caret">&#9656;</span> <strong>{{ day.entries[0].row.date_label or '-' }}</strong></td>
+        <td><span class="caret">&#9656;</span> <strong>{{ day.entries[0].row.date_label or ui('s_no_date') }}</strong></td>
         <td>{{ day.entries|length }} {{ ui('s_screenings_n') }}</td>
         <td>{{ day.events|join(', ') or '-' }}</td>
         <td></td>
