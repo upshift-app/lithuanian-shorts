@@ -65,8 +65,6 @@ class Screening:
     # guessing which one it was. None for rows built in memory. It kept the
     # name `row` from the spreadsheet days because the templates use it.
     row: Optional[int] = None
-    # Rows logged together from one saved programme share this id.
-    batch_id: Optional[str] = None
 
     @property
     def revenue(self) -> float:
@@ -188,7 +186,6 @@ def load_screenings() -> List[Screening]:
         programme=row.get("programme"),
         notes=row.get("notes"),
         row=row.get("id"),
-        batch_id=row.get("batch_id"),
     ) for row in store.screening_rows()]
 
 
@@ -285,10 +282,6 @@ def append_screening(data: Dict, actor: Optional[str] = None) -> int:
 
 def delete_screening(screening_id: int) -> bool:
     return store.screening_delete(screening_id)
-
-
-def delete_many(ids) -> bool:
-    return store.screening_delete_many(ids)
 
 
 def export_xlsx(rows: Sequence[Screening], path) -> object:

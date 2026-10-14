@@ -127,31 +127,16 @@
       {% set s = e.row %}
       <tr>
         <td>{{ s.date_label or '-' }}</td>
-        {% if e.members %}
-        <td>
-          <details>
-            <summary style="cursor:pointer"><strong>{{ s.programme or ui('sp_default_name') }}</strong>
-              <span class="muted small">· {{ e.members|length }} {{ ui('p_films') }}</span></summary>
-            <ul class="small" style="margin:6px 0 0;padding-left:18px">
-              {% for it in e.members %}
-              <li>{{ ftitle(it.film) if it.film else it.row.film_title }}</li>
-              {% endfor %}
-            </ul>
-          </details>
-        </td>
-        {% else %}
         <td>{{ ftitle(e.film) if e.film else s.film_title }}
           {% if not e.film %}<div class="muted small">{{ ui('r_no_films') }}</div>{% endif %}</td>
-        {% endif %}
         <td>{{ s.event or '-' }}
-          {% if s.programme and not e.members %}<div class="muted small">{{ s.programme }}</div>{% endif %}</td>
+          {% if s.programme %}<div class="muted small">{{ s.programme }}</div>{% endif %}</td>
         <td>{{ s.place or '-' }}</td>
         <td class="num">{{ s.screenings }}</td>
-        <td class="num">{{ (e.revenue if e.members else s.revenue)|eur }}</td>
+        <td class="num">{{ s.revenue|eur }}</td>
         <td class="num">
-          <form method="post" action="{{ url_for('screening_group_delete') if e.members else url_for('screening_delete', screening_id=s.row) }}"
+          <form method="post" action="{{ url_for('screening_delete', screening_id=s.row) }}"
                 onsubmit="return confirm({{ ui('s_delete_confirm')|tojson }})">
-            {% if e.members %}<input type="hidden" name="ids" value="{{ e.members|map(attribute='row.row')|join(',') }}">{% endif %}
             <button type="submit" class="linklike">{{ ui('s_delete') }}</button>
           </form>
         </td>

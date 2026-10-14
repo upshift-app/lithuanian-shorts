@@ -627,11 +627,9 @@ def create_app() -> Flask:
                     share = round(fee / len(films_in), 2)
                     shares = [share] * len(films_in)
                     shares[0] = round(fee - share * (len(films_in) - 1), 2)
-                    batch = uuid.uuid4().hex
                     for f, part in zip(films_in, shares):
                         scr.append_screening(dict(
-                            common, batch_id=batch,
-                            film_id=f.id, film_title=f.title,
+                            common, film_id=f.id, film_title=f.title,
                             fee_eur=part,
                             programme=programme or saved["title"]), actor=actor)
                 else:
@@ -651,31 +649,11 @@ def create_app() -> Flask:
             rows, error = [], str(e)
 
         # newest first: the row just added is the one the user wants to see
-        entries, groups = [], {}
+        entries = []
         for row in sorted(rows, key=lambda r: (r.date or _dt.date.min, r.row or 0),
                           reverse=True):
             film = cat.by_id(row.film_id) if row.film_id else None
-            item = {"row": row, "film": film}
-            # Rows that belong to one programme screening fold into one line:
-            # those logged together share a batch id, and older rows carrying
-            # the same programme, event, venue and date are treated alike.
-            key = (row.batch_id or
-                   ((row.programme, row.event, row.venue, row.city, row.country,
-                     row.date) if row.programme else None))
-            if key is not None:
-                if key in groups:
-                    group = groups[key]
-                    group["members"].append(item)
-                    group["revenue"] = round(group["revenue"] + row.revenue, 2)
-                    continue
-                item = {"row": row, "film": film, "members": [item],
-                        "revenue": row.revenue}
-                groups[key] = item
-            entries.append(item)
-        for entry in entries:
-            # a lone film with a programme label is just a screening
-            if len(entry.get("members", ())) == 1:
-                del entry["members"]
+            entries.append({"row": row, "film": film})
 
         return render_template(
             "screenings.html", catalog=cat,
@@ -683,21 +661,14 @@ def create_app() -> Flask:
             saved_programmes=_saved_programmes_or_empty(),
             entries=entries, error=error, errors=errors, form=form,
             notice={"added": "s_added", "deleted": "s_deleted"}.get(notice),
-            totals={"n": len(entries),
-                    "s": sum(int(e["row"].screenings or 1) for e in entries),
+            totals={"n": len(rows),
+                    "s": sum(int(r.screenings or 1) for r in rows),
                     "v": round(sum(r.revenue for r in rows), 2)},
         )
 
     @app.route("/screenings/<int:screening_id>/delete", methods=["POST"])
     def screening_delete(screening_id):
         if not scr.delete_screening(screening_id):
-            abort(404)
-        return redirect(url_for("screening_log", msg="deleted"))
-
-    @app.route("/screenings/delete-group", methods=["POST"])
-    def screening_group_delete():
-        ids = [int(x) for x in _split(request.form.get("ids")) if x.isdigit()]
-        if not ids or not store.screening_delete_many(ids):
             abort(404)
         return redirect(url_for("screening_log", msg="deleted"))
 
