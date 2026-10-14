@@ -662,10 +662,10 @@ def create_app() -> Flask:
                 # revenue is what the films' shares add up to.
                 if row.batch_id in by_batch:
                     group = by_batch[row.batch_id]
-                    group["items"].append(item)
+                    group["members"].append(item)
                     group["revenue"] = round(group["revenue"] + row.revenue, 2)
                     continue
-                item = {"row": row, "film": film, "items": [item],
+                item = {"row": row, "film": film, "members": [item],
                         "revenue": row.revenue}
                 by_batch[row.batch_id] = item
             entries.append(item)

@@ -127,13 +127,13 @@
       {% set s = e.row %}
       <tr>
         <td>{{ s.date_label or '-' }}</td>
-        {% if e.items %}
+        {% if e.members %}
         <td>
           <details>
             <summary style="cursor:pointer"><strong>{{ s.programme or ui('sp_default_name') }}</strong>
-              <span class="muted small">· {{ e.items|length }} {{ ui('p_films') }}</span></summary>
+              <span class="muted small">· {{ e.members|length }} {{ ui('p_films') }}</span></summary>
             <table style="margin-top:8px">
-              {% for it in e.items %}
+              {% for it in e.members %}
               <tr>
                 <td style="padding:3px 12px 3px 0;border:0">{{ ftitle(it.film) if it.film else it.row.film_title }}</td>
                 <td class="num" style="padding:3px 0;border:0">{{ it.row.revenue|eur }}</td>
@@ -147,12 +147,12 @@
           {% if not e.film %}<div class="muted small">{{ ui('r_no_films') }}</div>{% endif %}</td>
         {% endif %}
         <td>{{ s.event or '-' }}
-          {% if s.programme and not e.items %}<div class="muted small">{{ s.programme }}</div>{% endif %}</td>
+          {% if s.programme and not e.members %}<div class="muted small">{{ s.programme }}</div>{% endif %}</td>
         <td>{{ s.place or '-' }}</td>
         <td class="num">{{ s.screenings }}</td>
-        <td class="num">{{ (e.revenue if e.items else s.revenue)|eur }}</td>
+        <td class="num">{{ (e.revenue if e.members else s.revenue)|eur }}</td>
         <td class="num">
-          <form method="post" action="{{ url_for('screening_batch_delete', batch_id=s.batch_id) if e.items else url_for('screening_delete', screening_id=s.row) }}"
+          <form method="post" action="{{ url_for('screening_batch_delete', batch_id=s.batch_id) if e.members else url_for('screening_delete', screening_id=s.row) }}"
                 onsubmit="return confirm({{ ui('s_delete_confirm')|tojson }})">
             <button type="submit" class="linklike">{{ ui('s_delete') }}</button>
           </form>
