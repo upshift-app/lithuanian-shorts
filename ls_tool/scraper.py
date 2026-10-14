@@ -202,7 +202,9 @@ INFO_MAP_EN = {
 }
 CREW_MAP_EN = {
     "director": "director",
+    "directors": "director",
     "producer": "producer",
+    "producers": "producer",
     "script": "writer",
     "screenwriter": "writer",
     "cinematographer": "cinematographer",
@@ -217,7 +219,12 @@ CREW_MAP_EN = {
 CREW_MAP = {
     "režisierius/ė": "director",
     "režisierius": "director",
+    # co-directed films are headed in the plural, which used to match nothing
+    # and left the director empty
+    "režisieriai/ės": "director",
+    "režisieriai": "director",
     "prodiuseris/ė": "producer",
+    "prodiuseriai/ės": "producer",
     "scenarijaus autorius/ė": "writer",
     "operatorius/ė": "cinematographer",
     "montažo režisierius/ė": "editor",
@@ -362,7 +369,10 @@ def scrape(force: bool = False, workers: int = 8, limit: Optional[int] = None,
 
     changed = [p for p in posts
                if p["id"] not in cached
-               or cached[p["id"]].get("wp_modified") != p.get("modified")]
+               or cached[p["id"]].get("wp_modified") != p.get("modified")
+               # co-directed films were once saved with no director at all;
+               # fetching them again fills it in
+               or not cached[p["id"]].get("director")]
     todo = changed
     # Newest first, so a capped run picks up the films that were just added.
     todo.sort(key=lambda p: p.get("date") or "", reverse=True)

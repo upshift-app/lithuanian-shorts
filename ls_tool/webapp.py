@@ -117,6 +117,14 @@ def _programme_from_json(raw: dict, cat, req: ProgrammeRequest) -> Programme:
                      breakdown=raw.get("breakdown") or {}, request=req)
 
 
+def _saved_programmes_or_empty() -> list:
+    """The picker still works before sql/06_saved_programmes.sql has been run."""
+    try:
+        return store.saved_programmes()
+    except Exception:
+        return []
+
+
 def _missing_config() -> list:
     """Environment variables the app cannot run without."""
     return [name for name in ("SUPABASE_URL", "FLASK_SECRET_KEY")
@@ -530,6 +538,39 @@ def create_app() -> Flask:
                                             lang=lang, notes=option is None)
         return send_file(str(path), as_attachment=True, download_name=name)
 
+    # ------------------------------------------------------ saved programmes
+    @app.route("/programmes/save/<token>", methods=["POST"])
+    def programme_save(token):
+        """Keep a generated option as a favourite programme."""
+        req, proposals, _alternates = _stored_programme(token)
+        option = _int(request.form.get("option")) or 1
+        if not 1 <= option <= len(proposals):
+            abort(404)
+        prog = proposals[option - 1]
+        title = (request.form.get("title") or req.title or "").strip() or (
+            f"{ui_string(req.lang, 'sp_default_name')} {_dt.date.today():%Y-%m-%d}")
+        intro = (request.form.get("intro") or "").strip() or req.intro
+        saved = store.saved_programme_add(
+            title, [f.id for f in prog.films], intro, req.lang,
+            actor=auth.current_user()["id"])
+        return jsonify({"id": saved["id"], "title": title})
+
+    @app.route("/programmes/saved")
+    def saved_programmes():
+        cat = catalog()
+        items = []
+        for row in store.saved_programmes():
+            films = [f for f in (cat.by_id(i) for i in row.get("film_ids") or [])
+                     if f]
+            items.append({"row": row, "films": films})
+        return render_template("saved_programmes.html", items=items, catalog=cat)
+
+    @app.route("/programmes/saved/<int:programme_id>/delete", methods=["POST"])
+    def saved_programme_delete(programme_id):
+        if not store.saved_programme_delete(programme_id):
+            abort(404)
+        return redirect(url_for("saved_programmes"))
+
     # --------------------------------------------------------- screening log
     @app.route("/screenings", methods=["GET", "POST"])
     def screening_log():
@@ -540,9 +581,20 @@ def create_app() -> Flask:
         if request.method == "POST":
             form = request.form
             lang = ui_lang()
-            film = cat.by_id(_int(form.get("film_id"))) if form.get("film_id") else None
+            picked = (form.get("film_id") or "").strip()
+            is_programme = picked.startswith("p:")
+            saved = (store.saved_programme_get(_int(picked[2:], 0))
+                     if is_programme else None)
+            films_in = [f for f in (cat.by_id(i)
+                                    for i in (saved or {}).get("film_ids") or [])
+                        if f]
+            film = (cat.by_id(_int(picked))
+                    if picked and not is_programme else None)
             title = (form.get("film_title") or "").strip()
-            if film is None and not title:
+            if is_programme:
+                if not films_in:
+                    errors.append(ui_string(lang, "s_err_film"))
+            elif film is None and not title:
                 errors.append(ui_string(lang, "s_err_film"))
 
             count = _int(form.get("screenings"), 1)
@@ -557,21 +609,37 @@ def create_app() -> Flask:
                 errors.append(ui_string(lang, "s_err_date"))
 
             if not errors:
-                scr.append_screening({
-                    "film_id": film.id if film else "",
-                    # the plain title is stored too, so a row stays readable
-                    # on its own; the film_id is what the report matches on
-                    "film_title": film.title if film else title,
+                common = {
                     "event": (form.get("event") or "").strip(),
                     "venue": (form.get("venue") or "").strip(),
                     "city": (form.get("city") or "").strip(),
                     "country": (form.get("country") or "").strip(),
                     "date": date or "",
                     "screenings": count,
-                    "fee_eur": fee,
-                    "programme": (form.get("programme") or "").strip(),
                     "notes": (form.get("notes") or "").strip(),
-                }, actor=auth.current_user()["id"])
+                }
+                programme = (form.get("programme") or "").strip()
+                actor = auth.current_user()["id"]
+                if is_programme:
+                    # One row per film, so the per-film and per-director
+                    # reports stay right. The fee typed is for the whole
+                    # programme and is split evenly between its films.
+                    share = round(fee / len(films_in), 2)
+                    shares = [share] * len(films_in)
+                    shares[0] = round(fee - share * (len(films_in) - 1), 2)
+                    for f, part in zip(films_in, shares):
+                        scr.append_screening(dict(
+                            common, film_id=f.id, film_title=f.title,
+                            fee_eur=part,
+                            programme=programme or saved["title"]), actor=actor)
+                else:
+                    scr.append_screening(dict(
+                        common,
+                        film_id=film.id if film else "",
+                        # the plain title is stored too, so a row stays readable
+                        # on its own; the film_id is what the report matches on
+                        film_title=film.title if film else title,
+                        fee_eur=fee, programme=programme), actor=actor)
                 return redirect(url_for("screening_log", msg="added"))
 
         try:
@@ -590,6 +658,7 @@ def create_app() -> Flask:
         return render_template(
             "screenings.html", catalog=cat,
             films=sorted(cat.films, key=lambda f: (f.title or "").lower()),
+            saved_programmes=_saved_programmes_or_empty(),
             entries=entries, error=error, errors=errors, form=form,
             notice={"added": "s_added", "deleted": "s_deleted"}.get(notice),
             totals={"n": len(rows),

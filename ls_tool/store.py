@@ -238,6 +238,32 @@ def screening_delete(screening_id: int) -> bool:
     return bool(result)
 
 
+# ------------------------------------------------------- saved programmes
+
+def saved_programmes() -> List[dict]:
+    return _all("saved_programmes", order="title")
+
+
+def saved_programme_get(programme_id: int) -> Optional[dict]:
+    rows = (client().table("saved_programmes").select("*")
+            .eq("id", int(programme_id)).execute().data)
+    return rows[0] if rows else None
+
+
+def saved_programme_add(title: str, film_ids: List[int], intro: Optional[str],
+                        lang: str, actor: Optional[str] = None) -> dict:
+    return client().table("saved_programmes").insert({
+        "title": title, "film_ids": [int(i) for i in film_ids],
+        "intro": intro or None, "lang": lang, "created_by": actor,
+    }).execute().data[0]
+
+
+def saved_programme_delete(programme_id: int) -> bool:
+    result = (client().table("saved_programmes").delete()
+              .eq("id", int(programme_id)).execute().data)
+    return bool(result)
+
+
 # ------------------------------------------------------------- keyword workflow
 
 def suggestions() -> Dict[str, dict]:

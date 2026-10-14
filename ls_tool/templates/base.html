@@ -112,6 +112,7 @@
   <span class="brand">Lithuanian Shorts</span>
   <nav>
     <a href="{{ url_for('index') }}" class="{{ 'on' if page=='programme' }}">{{ ui('nav_programmes') }}</a>
+    <a href="{{ url_for('saved_programmes') }}" class="{{ 'on' if page=='saved' }}">{{ ui('nav_saved') }}</a>
     <a href="{{ url_for('screening_log') }}" class="{{ 'on' if page=='screenings' }}">{{ ui('nav_screenings') }}</a>
     <a href="{{ url_for('reports') }}" class="{{ 'on' if page=='reports' }}">{{ ui('nav_reports') }}</a>
     <a href="{{ url_for('films') }}" class="{{ 'on' if page=='films' }}">{{ ui('nav_archive') }}</a>

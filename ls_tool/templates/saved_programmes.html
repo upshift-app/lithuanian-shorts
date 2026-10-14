@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% set page = 'saved' %}
+{% block title %}{{ ui('sp_title') }} · Lithuanian Shorts{% endblock %}
+
+{% block body %}
+<h1>{{ ui('sp_title') }}</h1>
+<p class="lede">{{ ui('sp_lede') }}</p>
+
+{% if not items %}
+  <div class="card"><p class="muted">{{ ui('sp_empty') }}</p></div>
+{% endif %}
+
+{% for item in items %}
+<div class="card">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <h3>{{ item.row.title }}</h3>
+    <form method="post" action="{{ url_for('saved_programme_delete', programme_id=item.row.id) }}"
+          onsubmit="return confirm({{ ui('sp_delete_confirm')|tojson }})">
+      <button type="submit" class="ghost">{{ ui('sp_delete') }}</button>
+    </form>
+  </div>
+  {% if item.row.intro %}<p class="muted small">{{ item.row.intro }}</p>{% endif %}
+  <table style="margin-top:10px">
+    <thead>
+      <tr><th>{{ ui('th_no') }}</th><th>{{ ui('th_film') }}</th>
+          <th>{{ ui('th_year') }}</th><th>{{ ui('th_genre') }}</th>
+          <th class="num">{{ ui('th_duration') }}</th></tr>
+    </thead>
+    <tbody>
+    {% for f in item.films %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ ftitle(f) }}{% if f.director %}<div class="muted small">{{ ui('dir_prefix') }} {{ f.director }}</div>{% endif %}</td>
+        <td>{{ f.year or '' }}</td>
+        <td>{{ fgenre(f) or '' }}</td>
+        <td class="num">{{ f.duration_min|int if f.duration_min else '' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+{% endblock %}

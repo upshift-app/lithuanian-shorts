@@ -26,12 +26,23 @@
       <label for="film_id">{{ ui('s_film') }}</label>
       <select id="film_id" name="film_id" required>
         <option value="">{{ ui('s_film_ph') }}</option>
+        {% if saved_programmes %}
+        <optgroup label="{{ ui('s_group_programmes') }}">
+          {% for p in saved_programmes %}
+          <option value="p:{{ p.id }}" {{ 'selected' if form.get('film_id')=='p:' ~ p.id }}>
+            {{ p.title }} ({{ p.film_ids|length }} {{ ui('p_films') }})
+          </option>
+          {% endfor %}
+        </optgroup>
+        {% endif %}
+        <optgroup label="{{ ui('s_group_films') }}">
         {% for f in films %}
           <option value="{{ f.id }}" {{ 'selected' if form.get('film_id')==f.id|string }}>
             {{ ftitle(f) }}{% if f.year %} ({{ f.year }}){% endif %}
             {%- if f.director %} · {{ ui('dir_prefix') }} {{ f.director }}{% endif %}
           </option>
         {% endfor %}
+        </optgroup>
       </select>
       <div class="hint">{{ ui('s_film_hint') }}</div>
     </div>

@@ -218,6 +218,7 @@
           <button type="submit" class="ghost"
                   formaction="{{ url_for('download', token=token, fmt='pdf', option=loop.index) }}">{{ ui('download_pdf') }}</button>
           <button type="button" class="ghost draft">{{ ui('p_describe') }}</button>
+          <button type="button" class="ghost save-fav">{{ ui('sp_save') }}</button>
           <span class="hint draft-status" style="align-self:center"></span>
         </div>
       </form>
@@ -320,6 +321,35 @@
         })
         .catch(function (e) { status.textContent = e.message; })
         .then(function () { button.disabled = false; button.textContent = label; });
+    });
+  });
+})();
+
+// "Save programme" keeps this option's films (and its description) as a
+// favourite, to be picked again in the screening log.
+(function () {
+  Array.prototype.slice.call(document.querySelectorAll('form.dl')).forEach(function (form) {
+    var button = form.querySelector('.save-fav');
+    var status = form.querySelector('.draft-status');
+    var box = form.querySelector('textarea[name=intro]');
+    if (!button) return;
+    button.addEventListener('click', function () {
+      var name = window.prompt({{ ui('sp_name_prompt')|tojson }},
+                               {{ (req.title if req and req.title else '')|tojson }});
+      if (name === null) return;
+      button.disabled = true;
+      var body = new FormData();
+      body.append('option', form.dataset.option);
+      body.append('title', name);
+      body.append('intro', box ? box.value : '');
+      fetch('/programmes/save/' + form.dataset.token, {method: 'POST', body: body})
+        .then(function (r) { return r.json().then(function (d) { return [r.ok, d]; }); })
+        .then(function (pair) {
+          if (!pair[0]) throw new Error(pair[1].error || 'failed');
+          status.textContent = {{ ui('sp_saved')|tojson }} + ': ' + pair[1].title;
+        })
+        .catch(function (e) { status.textContent = e.message; })
+        .then(function () { button.disabled = false; });
     });
   });
 })();
