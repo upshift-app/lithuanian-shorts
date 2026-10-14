@@ -651,24 +651,31 @@ def create_app() -> Flask:
             rows, error = [], str(e)
 
         # newest first: the row just added is the one the user wants to see
-        entries, by_batch = [], {}
+        entries, groups = [], {}
         for row in sorted(rows, key=lambda r: (r.date or _dt.date.min, r.row or 0),
                           reverse=True):
             film = cat.by_id(row.film_id) if row.film_id else None
             item = {"row": row, "film": film}
-            if row.batch_id:
-                # A programme logged in one go is one line with its films
-                # folded inside; the rows share a screening count, and the
-                # revenue is what the films' shares add up to.
-                if row.batch_id in by_batch:
-                    group = by_batch[row.batch_id]
+            # Rows that belong to one programme screening fold into one line:
+            # those logged together share a batch id, and older rows carrying
+            # the same programme, event, venue and date are treated alike.
+            key = (row.batch_id or
+                   ((row.programme, row.event, row.venue, row.city, row.country,
+                     row.date) if row.programme else None))
+            if key is not None:
+                if key in groups:
+                    group = groups[key]
                     group["members"].append(item)
                     group["revenue"] = round(group["revenue"] + row.revenue, 2)
                     continue
                 item = {"row": row, "film": film, "members": [item],
                         "revenue": row.revenue}
-                by_batch[row.batch_id] = item
+                groups[key] = item
             entries.append(item)
+        for entry in entries:
+            # a lone film with a programme label is just a screening
+            if len(entry.get("members", ())) == 1:
+                del entry["members"]
 
         return render_template(
             "screenings.html", catalog=cat,
@@ -687,11 +694,10 @@ def create_app() -> Flask:
             abort(404)
         return redirect(url_for("screening_log", msg="deleted"))
 
-    @app.route("/screenings/batch/<batch_id>/delete", methods=["POST"])
-    def screening_batch_delete(batch_id):
-        if not re.fullmatch(r"[0-9a-f-]{32,36}", batch_id):
-            abort(404)
-        if not scr.delete_batch(batch_id):
+    @app.route("/screenings/delete-group", methods=["POST"])
+    def screening_group_delete():
+        ids = [int(x) for x in _split(request.form.get("ids")) if x.isdigit()]
+        if not ids or not store.screening_delete_many(ids):
             abort(404)
         return redirect(url_for("screening_log", msg="deleted"))
 

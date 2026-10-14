@@ -244,9 +244,9 @@ def screening_delete(screening_id: int) -> bool:
     return bool(result)
 
 
-def screening_delete_batch(batch_id: str) -> bool:
+def screening_delete_many(ids: List[int]) -> bool:
     result = (client().table("screenings").delete()
-              .eq("batch_id", str(batch_id)).execute().data)
+              .in_("id", [int(i) for i in ids]).execute().data)
     return bool(result)
 
 

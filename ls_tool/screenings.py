@@ -287,8 +287,8 @@ def delete_screening(screening_id: int) -> bool:
     return store.screening_delete(screening_id)
 
 
-def delete_batch(batch_id: str) -> bool:
-    return store.screening_delete_batch(batch_id)
+def delete_many(ids) -> bool:
+    return store.screening_delete_many(ids)
 
 
 def export_xlsx(rows: Sequence[Screening], path) -> object:
