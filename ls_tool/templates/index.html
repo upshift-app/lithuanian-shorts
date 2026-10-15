@@ -254,10 +254,11 @@
         </tbody>
       </table>
 
-      <div class="row" style="margin-top:10px;gap:8px;align-items:center">
-        <input type="text" class="add-film" list="film-list" style="max-width:420px"
-               placeholder="{{ ui('p_add_ph') }}" aria-label="{{ ui('p_add_film') }}">
-        <button type="button" class="ghost add-film-btn">{{ ui('p_add_btn') }}</button>
+      <div class="film-search">
+        <label>{{ ui('p_add_film') }}</label>
+        <input type="text" class="add-film" autocomplete="off" role="combobox"
+               aria-expanded="false" placeholder="{{ ui('p_add_ph') }}">
+        <div class="film-results" role="listbox" hidden></div>
       </div>
 
       {% set cov = prog.keyword_coverage() %}
@@ -301,7 +302,21 @@
 {% endif %}
 
 {% if submitted and proposals %}
-<datalist id="film-list"></datalist>
+<style>
+  .film-search{position:relative;max-width:460px;margin-top:12px}
+  .film-results{position:absolute;left:0;right:0;top:100%;margin-top:4px;z-index:20;
+    background:#fff;border:1px solid var(--line);border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:320px;overflow-y:auto}
+  .film-results .opt{padding:9px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0}
+  .film-results .opt:last-child{border-bottom:0}
+  .film-results .opt.on,.film-results .opt:hover{background:#f4f4f4}
+  .film-results .opt .t{font-weight:600;font-size:13.5px}
+  .film-results .opt .m{color:var(--muted);font-size:12px;margin-top:1px}
+  .prog-table button.mv,.prog-table button.rm{background:#fff;color:var(--ink);border:1px solid var(--line);padding:3px 9px;min-width:30px;font-weight:600}
+  .prog-table button.mv:hover:not(:disabled),.prog-table button.rm:hover{background:#f0f0f0}
+  .prog-table button.mv:disabled{opacity:.35;cursor:default}
+  .film-results .none{padding:10px 12px;color:var(--muted);font-size:13px}
+</style>
 <script>
 // Reorder, remove or add films in an option. The page redraws the table from
 // the film data below, and the current order travels with every button
@@ -318,20 +333,17 @@
       return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
     });
   }
-  function label(id) {
-    var f = FILMS[id];
-    return f.t + (f.y ? ' (' + f.y + ')' : '') + ' #' + id;
+  function fold(s) {
+    return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
-  var byLabel = {};
-  var list = document.getElementById('film-list');
-  Object.keys(FILMS).sort(function (a, b) {
+  var SORTED = Object.keys(FILMS).sort(function (a, b) {
     return FILMS[a].t.localeCompare(FILMS[b].t);
-  }).forEach(function (id) {
-    byLabel[label(id)] = id;
-    var o = document.createElement('option');
-    o.value = label(id);
-    list.appendChild(o);
   });
+  var HAY = {};
+  SORTED.forEach(function (id) {
+    HAY[id] = fold(FILMS[id].t + ' ' + FILMS[id].d + ' ' + id);
+  });
+  var NO_MATCH = {{ ui('p_no_match')|tojson }};
   function runtime(min) {
     min = Math.round(min);
     var h = Math.floor(min / 60), m = min % 60;
@@ -386,17 +398,67 @@
       render();
     });
 
-    function add() {
-      var id = byLabel[input.value.trim()];
+    // Search-as-you-type list under the box: arrows move, Enter or a click
+    // adds, Escape closes. Films already in the programme are left out.
+    var results = card.querySelector('.film-results');
+    var shown = [], active = 0;
+
+    function close() {
+      results.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+    }
+    function paint() {
+      Array.prototype.slice.call(results.querySelectorAll('.opt')).forEach(function (o, i) {
+        o.classList.toggle('on', i === active);
+        if (i === active) o.scrollIntoView({block: 'nearest'});
+      });
+    }
+    function search() {
+      var words = fold(input.value).split(/\s+/).filter(Boolean);
+      if (!words.length) { close(); return; }
+      shown = SORTED.filter(function (id) {
+        return ids.indexOf(id) === -1 && words.every(function (w) {
+          return HAY[id].indexOf(w) !== -1;
+        });
+      }).slice(0, 30);
+      active = 0;
+      if (!shown.length) {
+        results.innerHTML = '<div class="none">' + esc(NO_MATCH) + '</div>';
+      } else {
+        results.innerHTML = shown.map(function (id, i) {
+          var f = FILMS[id];
+          var meta = [f.y, f.d ? T.dir + ' ' + f.d : '', f.m ? Math.round(f.m) + ' ' + LABEL_MIN : '',
+                      T.id + ' ' + id].filter(Boolean).join(' · ');
+          return '<div class="opt" role="option" data-id="' + id + '"><div class="t">' + esc(f.t) +
+                 '</div><div class="m">' + esc(meta) + '</div></div>';
+        }).join('');
+      }
+      results.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      paint();
+    }
+    function pick(id) {
       if (!id || ids.indexOf(id) !== -1) return;
       ids.push(id);
       input.value = '';
+      close();
       render();
+      input.focus();
     }
-    card.querySelector('.add-film-btn').addEventListener('click', add);
+    input.addEventListener('input', search);
+    input.addEventListener('focus', search);
     input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); add(); }
+      if (e.key === 'ArrowDown' && shown.length) { e.preventDefault(); active = Math.min(active + 1, shown.length - 1); paint(); }
+      else if (e.key === 'ArrowUp' && shown.length) { e.preventDefault(); active = Math.max(active - 1, 0); paint(); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (!results.hidden && shown.length) pick(shown[active]); }
+      else if (e.key === 'Escape') { close(); }
     });
+    // mousedown, not click: it must land before the box loses focus
+    results.addEventListener('mousedown', function (e) {
+      var o = e.target.closest('.opt');
+      if (o) { e.preventDefault(); pick(o.dataset.id); }
+    });
+    input.addEventListener('blur', function () { setTimeout(close, 120); });
     render();
   });
 })();
