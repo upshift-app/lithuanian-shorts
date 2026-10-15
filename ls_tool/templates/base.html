@@ -104,6 +104,8 @@
   .kwbox{max-height:190px;overflow-y:auto;border:1px solid var(--line);
          border-radius:5px;padding:9px;background:#fff}
   .kwbox .chk{margin-bottom:3px}
+  /* class rules such as .chk{display:flex} would otherwise beat the hidden attribute */
+  [hidden]{display:none !important}
   footer{color:var(--muted);font-size:11.5px;text-align:center;padding:0 0 30px}
 </style>
 </head>
