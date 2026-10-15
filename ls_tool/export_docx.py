@@ -15,7 +15,7 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.shared import Pt, RGBColor
 
 from .config import OUTPUT_DIR
-from .i18n import (DEFAULT_LANG, film_country, film_genre, film_language,
+from .i18n import (DEFAULT_LANG, company_lines, film_country, film_genre, film_language,
                    film_synopsis, film_title, film_url, minutes_label,
                    norm_lang, t)
 from .programme import Programme
@@ -89,7 +89,8 @@ def _criteria(req, lang) -> str:
 
 def programme_docx(proposals: Sequence[Programme], alternates=(),
                    path: Optional[Path] = None, subtitle: Optional[str] = None,
-                   lang: Optional[str] = None) -> Path:
+                   lang: Optional[str] = None,
+                   company: Optional[dict] = None) -> Path:
     req = proposals[0].request if proposals else None
     lang = norm_lang(lang or (req.lang if req else DEFAULT_LANG))
 
@@ -101,7 +102,12 @@ def programme_docx(proposals: Sequence[Programme], alternates=(),
     # The same "prepared by" header the PDF carries above its logo.
     _para(doc, t(lang, "prepared_by"), size=9, bold=True, color=ACCENT,
           space_after=0)
-    _para(doc, t(lang, "agency"), size=10, color=ACCENT, space_after=10)
+    co_lines = company_lines(company, lang)
+    _para(doc, t(lang, "agency"), size=10, color=ACCENT,
+          space_after=2 if co_lines else 10)
+    for i, co_line in enumerate(co_lines):
+        _para(doc, co_line, size=8.5, color=MUTED,
+              space_after=10 if i == len(co_lines) - 1 else 0)
     _para(doc, t(lang, "brand"), size=8.5, bold=True, color=MUTED, space_after=2)
     _para(doc, heading, size=22, bold=True, color=ACCENT, space_after=2)
     if subtitle or (req and req.occasion):
@@ -212,7 +218,8 @@ def programme_docx(proposals: Sequence[Programme], alternates=(),
 def report_docx(reports: Sequence[FilmReport], path: Optional[Path] = None,
                 title: Optional[str] = None, period: Optional[str] = None,
                 recipient: Optional[str] = None,
-                lang: Optional[str] = None) -> Path:
+                lang: Optional[str] = None,
+                company: Optional[dict] = None) -> Path:
     lang = norm_lang(lang)
     title = title or t(lang, "report_title")
 
@@ -226,7 +233,11 @@ def report_docx(reports: Sequence[FilmReport], path: Optional[Path] = None,
     line = f"{t(lang, 'prepared')} {_dt.date.today():%Y-%m-%d}"
     if period:
         line += f" · {t(lang, 'period')} {period}"
-    _para(doc, line, size=8.5, color=MUTED, space_after=12)
+    co_lines = company_lines(company, lang)
+    _para(doc, line, size=8.5, color=MUTED, space_after=2 if co_lines else 12)
+    for i, co_line in enumerate(co_lines):
+        _para(doc, co_line, size=8.5, color=MUTED,
+              space_after=12 if i == len(co_lines) - 1 else 0)
 
     agg = totals(reports)
     _para(doc, t(lang, "summary"), size=13, bold=True, color=ACCENT, space_after=4)

@@ -6,7 +6,7 @@ STRINGS below and the film content from the ``*_en`` fields the scraper collects
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 LANGUAGES = ("lt", "en")
 DEFAULT_LANG = "lt"
@@ -15,6 +15,9 @@ LANGUAGE_NAMES = {"lt": "Lietuvių", "en": "English"}
 
 STRINGS = {
     "lt": {
+        "co_code": "Įmonės kodas",
+        "co_vat": "PVM kodas",
+        "co_iban": "IBAN",
         "brand": "LITHUANIAN SHORTS",
         "programme_title": "Filmų programos pasiūlymas",
         "prepared_by": "PROGRAMOS PASIŪLYMĄ PARENGĖ:",
@@ -70,6 +73,9 @@ STRINGS = {
         "minute": "min",
     },
     "en": {
+        "co_code": "Company code",
+        "co_vat": "VAT no.",
+        "co_iban": "IBAN",
         "brand": "LITHUANIAN SHORTS",
         "programme_title": "Film Programme Proposal",
         "prepared_by": "PROGRAMME PROPOSAL PREPARED BY:",
@@ -129,6 +135,29 @@ STRINGS = {
 def norm_lang(lang: Optional[str]) -> str:
     lang = (lang or DEFAULT_LANG).lower().strip()[:2]
     return lang if lang in LANGUAGES else DEFAULT_LANG
+
+
+def company_lines(company: Optional[dict], lang: Optional[str]) -> List[str]:
+    """The company details as printed lines, empty fields left out."""
+    c = {k: (v or "").strip() for k, v in (company or {}).items()
+         if isinstance(v, str)}
+    lines: List[str] = []
+    if c.get("name"):
+        lines.append(c["name"])
+    lines += [ln.strip() for ln in c.get("address", "").splitlines() if ln.strip()]
+    ids = []
+    if c.get("code"):
+        ids.append(f"{t(lang, 'co_code')}: {c['code']}")
+    if c.get("vat"):
+        ids.append(f"{t(lang, 'co_vat')}: {c['vat']}")
+    if ids:
+        lines.append(" | ".join(ids))
+    contact = [c[k] for k in ("email", "phone", "website") if c.get(k)]
+    if contact:
+        lines.append(" | ".join(contact))
+    if c.get("iban"):
+        lines.append(f"{t(lang, 'co_iban')}: {c['iban']}")
+    return lines
 
 
 def t(lang: Optional[str], key: str, **kwargs) -> str:

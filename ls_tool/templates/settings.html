@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% set page = 'settings' %}
+{% block title %}{{ ui('st_title') }} · Lithuanian Shorts{% endblock %}
+
+{% block body %}
+<h1>{{ ui('st_title') }}</h1>
+<p class="lede">{{ ui('st_lede') }}</p>
+
+{% if error %}<div class="err">{{ error }}</div>{% endif %}
+{% if notice %}<div class="note" style="border-left-color:var(--ok);background:#f1f8f4">{{ ui(notice) }}</div>{% endif %}
+
+<form method="post">
+<div class="card">
+  <h3>{{ ui('st_company') }}</h3>
+  <p class="small muted" style="margin:4px 0 14px">{{ ui('st_company_hint') }}</p>
+  <div class="grid g2">
+    {% for k in fields %}
+    <div>
+      <label for="co_{{ k }}">{{ ui('st_co_' ~ k) }}</label>
+      {% if k == 'address' %}
+        <textarea id="co_{{ k }}" name="co_{{ k }}" rows="2">{{ company.get(k, '') }}</textarea>
+      {% else %}
+        <input type="text" id="co_{{ k }}" name="co_{{ k }}" value="{{ company.get(k, '') }}">
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <h3>{{ ui('st_fees') }}</h3>
+  <p class="small muted" style="margin:4px 0 14px">{{ ui('st_fees_hint') }}</p>
+  <div class="grid g2">
+    <div>
+      <label for="fee_commercial">{{ ui('s_kind_commercial') }} (EUR)</label>
+      <input type="number" id="fee_commercial" name="fee_commercial" min="0" step="0.01"
+             value="{{ '%.2f'|format(fees.commercial) }}">
+    </div>
+    <div>
+      <label for="fee_non_commercial">{{ ui('s_kind_non_commercial') }} (EUR)</label>
+      <input type="number" id="fee_non_commercial" name="fee_non_commercial" min="0" step="0.01"
+             value="{{ '%.2f'|format(fees.non_commercial) }}">
+    </div>
+  </div>
+  <div class="actions"><button type="submit">{{ ui('st_save') }}</button></div>
+</div>
+</form>
+{% endblock %}

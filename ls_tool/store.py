@@ -233,6 +233,12 @@ def screening_add(data: Dict, actor: Optional[str] = None) -> dict:
         "notes": data.get("notes") or None,
         "created_by": actor,
     }
+    # Only sent when used, so plain rows keep working before 08_fees_settings.sql
+    # has been run.
+    if data.get("revenue_eur") not in (None, ""):
+        row["revenue_eur"] = float(data["revenue_eur"])
+    if data.get("kind"):
+        row["kind"] = data["kind"]
     return client().table("screenings").insert(row).execute().data[0]
 
 
@@ -246,6 +252,21 @@ def screening_delete_many(ids: List[int]) -> bool:
     result = (client().table("screenings").delete()
               .in_("id", [int(i) for i in ids]).execute().data)
     return bool(result)
+
+
+# ---------------------------------------------------------------- settings
+
+def settings_get(key: str) -> dict:
+    rows = (client().table("app_settings").select("value")
+            .eq("key", key).execute().data)
+    return (rows[0]["value"] if rows else None) or {}
+
+
+def settings_put(key: str, value: dict, actor: Optional[str] = None) -> None:
+    client().table("app_settings").upsert({
+        "key": key, "value": value, "updated_by": actor,
+        "updated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+    }).execute()
 
 
 # ------------------------------------------------------- saved programmes

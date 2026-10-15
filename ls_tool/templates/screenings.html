@@ -80,10 +80,37 @@
              value="{{ form.get('screenings','1') }}">
     </div>
     <div>
-      <label for="fee_eur">{{ ui('s_fee') }}</label>
+      <label for="fee_eur" id="fee-label">{{ ui('s_fee') }}</label>
       <input type="number" id="fee_eur" name="fee_eur" min="0" step="0.01"
              value="{{ form.get('fee_eur','') }}">
-      <div class="hint">{{ ui('s_fee_hint') }}</div>
+      <div class="hint" id="fee-hint">{{ ui('s_fee_hint') }}</div>
+    </div>
+  </div>
+
+
+  <div id="prog-panel" class="card" style="margin:16px 0 0;background:#fafafa" hidden>
+    <div class="grid g2">
+      <div>
+        <label for="kind">{{ ui('s_kind') }}</label>
+        <select id="kind" name="kind">
+          <option value="commercial" {{ 'selected' if form.get('kind','commercial')=='commercial' }}>{{ ui('s_kind_commercial') }}</option>
+          <option value="non_commercial" {{ 'selected' if form.get('kind')=='non_commercial' }}>{{ ui('s_kind_non_commercial') }}</option>
+        </select>
+      </div>
+      <div>
+        <label>{{ ui('s_mode') }}</label>
+        <div style="display:flex;gap:18px;padding-top:8px">
+          <label class="chk" style="margin:0"><input type="radio" name="fee_mode" value="auto"
+                 {{ 'checked' if form.get('fee_mode','auto')=='auto' }}> {{ ui('s_mode_auto') }}</label>
+          <label class="chk" style="margin:0"><input type="radio" name="fee_mode" value="manual"
+                 {{ 'checked' if form.get('fee_mode')=='manual' }}> {{ ui('s_mode_manual') }}</label>
+        </div>
+      </div>
+    </div>
+    <div class="small muted" id="auto-note" style="margin-top:10px"></div>
+    <div id="manual-box" hidden style="margin-top:10px">
+      <div class="small muted" style="margin-bottom:6px">{{ ui('s_manual_note') }}</div>
+      <table id="manual-table"><tbody></tbody></table>
     </div>
   </div>
 
@@ -181,6 +208,81 @@
       Array.prototype.slice.call(rows).forEach(function (r) { r.hidden = !open; });
     });
   });
+})();
+</script>
+
+<script>
+// Picking a saved programme turns the fee box into "programme revenue" and
+// opens the commercial / manual choices. Automatic: (revenue - agency fee) /
+// number of films. Manual: one amount per film.
+(function () {
+  var PROGS = {{ prog_json|tojson }};
+  var FEES = {{ fees|tojson }};
+  var PREV = {{ film_rev|tojson }};
+  var AUTO = {{ ui('s_auto_note')|tojson }};
+  var LABEL = {{ ui('s_fee')|tojson }}, HINT = {{ ui('s_fee_hint')|tojson }};
+  var PLABEL = {{ ui('s_prog_fee')|tojson }}, PHINT = {{ ui('s_prog_fee_hint')|tojson }};
+  var REVLABEL = {{ ui('s_film_rev')|tojson }};
+
+  var pick = document.getElementById('film_id');
+  var panel = document.getElementById('prog-panel');
+  var fee = document.getElementById('fee_eur');
+  if (!pick || !panel || !fee) return;
+  var kind = document.getElementById('kind');
+  var note = document.getElementById('auto-note');
+  var box = document.getElementById('manual-box');
+  var tbody = document.querySelector('#manual-table tbody');
+  var built = null;
+
+  function mode() {
+    return document.querySelector('input[name=fee_mode]:checked').value;
+  }
+  function progId() {
+    return pick.value.indexOf('p:') === 0 ? pick.value.slice(2) : null;
+  }
+  function build(id) {
+    if (built === id) return;
+    built = id;
+    tbody.innerHTML = '';
+    if (!id || !PROGS[id]) return;
+    PROGS[id].films.forEach(function (f) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td');
+      a.textContent = f.title;
+      var b = document.createElement('td');
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0'; inp.step = '0.01';
+      inp.name = 'film_rev_' + f.id; inp.placeholder = REVLABEL;
+      if (PREV[f.id]) inp.value = PREV[f.id];
+      b.appendChild(inp);
+      tr.appendChild(a); tr.appendChild(b);
+      tbody.appendChild(tr);
+    });
+  }
+  function refresh() {
+    var id = progId();
+    panel.hidden = !id;
+    document.getElementById('fee-label').textContent = id ? PLABEL : LABEL;
+    document.getElementById('fee-hint').textContent = id ? PHINT : HINT;
+    if (!id) return;
+    build(id);
+    var manual = mode() === 'manual';
+    box.hidden = !manual;
+    note.hidden = manual;
+    if (!manual) {
+      var agency = FEES[kind.value] || 0;
+      var n = PROGS[id] ? PROGS[id].films.length : 1;
+      var x = parseFloat(fee.value);
+      var each = isNaN(x) ? '-' : Math.max(0, (x - agency) / n).toFixed(2);
+      note.textContent = AUTO.replace('{agency}', agency.toFixed(2)).replace('{each}', each);
+    }
+  }
+  [pick, kind, fee].forEach(function (el) {
+    el.addEventListener('change', refresh); el.addEventListener('input', refresh);
+  });
+  Array.prototype.slice.call(document.querySelectorAll('input[name=fee_mode]'))
+    .forEach(function (r) { r.addEventListener('change', refresh); });
+  refresh();
 })();
 </script>
 {% endblock %}

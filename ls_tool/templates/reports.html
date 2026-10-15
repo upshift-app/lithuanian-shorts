@@ -85,6 +85,8 @@
         <a href="#" id="films-none">{{ ui('r_pick_none') }}</a>
       </span>
     </div>
+    <input type="search" id="films-search" placeholder="{{ ui('r_search_ph') }}"
+           aria-label="{{ ui('r_search') }}" style="margin:6px 0">
     {% set picked_films = form.getlist('film_ids') %}
     <div class="kwbox" id="films-box">
       {% for f in sheet_films %}
@@ -186,16 +188,26 @@
   var note = document.getElementById('films-hidden-note');
   var noteTemplate = {{ ui('r_films_hidden', n='__N__', total='__T__')|tojson }};
 
+  var search = document.getElementById('films-search');
+  function fold(text) {
+    return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
+  rows.forEach(function (row) { row.dataset.text = fold(row.textContent); });
+
   function applyFilter() {
     var opt = director.options[director.selectedIndex];
     var allowed = (opt && opt.dataset.films) ? opt.dataset.films.split(',') : null;
+    var words = fold(search ? search.value : '').split(/\s+/).filter(Boolean);
     var shown = 0;
 
     rows.forEach(function (row) {
-      var visible = !allowed || allowed.indexOf(row.dataset.film) !== -1;
-      row.hidden = !visible;
-      if (visible) shown++;
-      else row.querySelector('input').checked = false;
+      var byDirector = !allowed || allowed.indexOf(row.dataset.film) !== -1;
+      var bySearch = words.every(function (w) { return row.dataset.text.indexOf(w) !== -1; });
+      row.hidden = !(byDirector && bySearch);
+      if (byDirector) shown++;
+      // a film the director filter removes is unticked; one only hidden by
+      // the search stays ticked, so searching never drops a choice
+      if (!byDirector) row.querySelector('input').checked = false;
     });
 
     if (allowed && note) {
@@ -208,6 +220,7 @@
   }
 
   director.addEventListener('change', applyFilter);
+  if (search) search.addEventListener('input', applyFilter);
   applyFilter();
 
   function setAll(state) {

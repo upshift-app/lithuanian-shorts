@@ -203,12 +203,13 @@
       <div class="row" style="justify-content:space-between">
         <h3>{{ ui('p_variant', n=loop.index) }}</h3>
         <span class="muted small">
-          {{ prog.films|length }} {{ ui('p_films') }} · {{ prog.runtime(ui_lang) }}
+          <span class="n-films">{{ prog.films|length }}</span> {{ ui('p_films') }} · <span class="runtime">{{ prog.runtime(ui_lang) }}</span>
           · {{ ui('p_match') }} {{ '%.2f'|format(prog.score) }}
         </span>
       </div>
       <form class="dl" method="post" data-token="{{ token }}" data-option="{{ loop.index }}"
             action="{{ url_for('download', token=token, fmt='pdf', option=loop.index) }}">
+        <input type="hidden" name="film_ids" value="{{ prog.films|map(attribute='id')|join(',') }}">
         <label for="intro-{{ loop.index }}" style="margin-top:10px">{{ ui('p_intro') }} {{ info('h_intro_option') }}</label>
         <textarea id="intro-{{ loop.index }}" name="intro" rows="4"
                   placeholder="{{ ui('p_intro_ph') }}">{{ req.intro or '' }}</textarea>
@@ -222,12 +223,13 @@
           <span class="hint draft-status" style="align-self:center"></span>
         </div>
       </form>
-      <table style="margin-top:10px">
+      <div class="small muted" style="margin-top:12px">{{ ui('p_edit_hint') }}</div>
+      <table class="prog-table" style="margin-top:6px">
         <thead>
           <tr><th>{{ ui('th_no') }}</th><th>{{ ui('th_film') }}</th>
               <th>{{ ui('th_year') }}</th><th>{{ ui('th_genre') }}</th>
               <th class="num">{{ ui('th_duration') }}</th>
-              <th>{{ ui('th_keywords') }}</th></tr>
+              <th>{{ ui('th_keywords') }}</th><th></th></tr>
         </thead>
         <tbody>
         {% for f in prog.films %}
@@ -251,6 +253,12 @@
           </tr>
         </tbody>
       </table>
+
+      <div class="row" style="margin-top:10px;gap:8px;align-items:center">
+        <input type="text" class="add-film" list="film-list" style="max-width:420px"
+               placeholder="{{ ui('p_add_ph') }}" aria-label="{{ ui('p_add_film') }}">
+        <button type="button" class="ghost add-film-btn">{{ ui('p_add_btn') }}</button>
+      </div>
 
       {% set cov = prog.keyword_coverage() %}
       {% if cov %}
@@ -292,6 +300,109 @@
   {% endif %}
 {% endif %}
 
+{% if submitted and proposals %}
+<datalist id="film-list"></datalist>
+<script>
+// Reorder, remove or add films in an option. The page redraws the table from
+// the film data below, and the current order travels with every button
+// (download, save, draft description) in the hidden film_ids field.
+(function () {
+  var FILMS = {{ film_index|tojson }};
+  var LABEL_HOUR = {{ time_labels.hour|tojson }}, LABEL_MIN = {{ time_labels.minute|tojson }};
+  var T = {up: {{ ui('p_move_up')|tojson }}, down: {{ ui('p_move_down')|tojson }},
+           remove: {{ ui('p_remove')|tojson }}, dir: {{ ui('dir_prefix')|tojson }},
+           id: {{ ui('th_id')|tojson }}, total: {{ ui('th_total')|tojson }}};
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
+    });
+  }
+  function label(id) {
+    var f = FILMS[id];
+    return f.t + (f.y ? ' (' + f.y + ')' : '') + ' #' + id;
+  }
+  var byLabel = {};
+  var list = document.getElementById('film-list');
+  Object.keys(FILMS).sort(function (a, b) {
+    return FILMS[a].t.localeCompare(FILMS[b].t);
+  }).forEach(function (id) {
+    byLabel[label(id)] = id;
+    var o = document.createElement('option');
+    o.value = label(id);
+    list.appendChild(o);
+  });
+  function runtime(min) {
+    min = Math.round(min);
+    var h = Math.floor(min / 60), m = min % 60;
+    return h ? h + ' ' + LABEL_HOUR + ' ' + (m < 10 ? '0' : '') + m + ' ' + LABEL_MIN
+             : m + ' ' + LABEL_MIN;
+  }
+
+  Array.prototype.slice.call(document.querySelectorAll('form.dl')).forEach(function (form) {
+    var card = form.parentNode;
+    var table = card.querySelector('table.prog-table tbody');
+    var hidden = form.querySelector('input[name=film_ids]');
+    var ids = hidden.value.split(',').filter(Boolean);
+    var input = card.querySelector('.add-film');
+
+    function render() {
+      hidden.value = ids.join(',');
+      var total = 0, html = '';
+      ids.forEach(function (id, i) {
+        var f = FILMS[id];
+        if (!f) return;
+        total += f.m || 0;
+        html += '<tr><td class="muted">' + (i + 1) + '</td><td>' +
+          '<a href="' + esc(f.u) + '" target="_blank" rel="noopener"><strong>' + esc(f.t) + '</strong></a>' +
+          (f.d ? '<div class="muted small">' + esc(T.dir) + ' ' + esc(f.d) + '</div>' : '') +
+          '<div class="muted small">' + esc(T.id) + ' ' + id + '</div></td>' +
+          '<td>' + (f.y || '-') + '</td><td>' + esc(f.g || '-') + '</td>' +
+          '<td class="num">' + (f.m ? Math.round(f.m) + ' ' + LABEL_MIN : '-') + '</td>' +
+          '<td>' + f.k.map(function (k) { return '<span class="tag">' + esc(k) + '</span>'; }).join('') + '</td>' +
+          '<td style="white-space:nowrap">' +
+          '<button type="button" class="ghost mv" data-i="' + i + '" data-d="-1" title="' + esc(T.up) + '"' + (i === 0 ? ' disabled' : '') + '>&uarr;</button> ' +
+          '<button type="button" class="ghost mv" data-i="' + i + '" data-d="1" title="' + esc(T.down) + '"' + (i === ids.length - 1 ? ' disabled' : '') + '>&darr;</button> ' +
+          '<button type="button" class="ghost rm" data-i="' + i + '" title="' + esc(T.remove) + '">&times;</button></td></tr>';
+      });
+      html += '<tr class="total"><td></td><td>' + esc(T.total) + '</td><td></td><td></td>' +
+              '<td class="num">' + runtime(total) + '</td><td></td><td></td></tr>';
+      table.innerHTML = html;
+      card.querySelector('.n-films').textContent = ids.length;
+      card.querySelector('.runtime').textContent = runtime(total);
+    }
+
+    table.addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (!b) return;
+      var i = parseInt(b.dataset.i, 10);
+      if (b.classList.contains('rm')) {
+        ids.splice(i, 1);
+      } else if (b.classList.contains('mv')) {
+        var j = i + parseInt(b.dataset.d, 10);
+        if (j < 0 || j >= ids.length) return;
+        var tmp = ids[i]; ids[i] = ids[j]; ids[j] = tmp;
+      } else { return; }
+      render();
+    });
+
+    function add() {
+      var id = byLabel[input.value.trim()];
+      if (!id || ids.indexOf(id) !== -1) return;
+      ids.push(id);
+      input.value = '';
+      render();
+    }
+    card.querySelector('.add-film-btn').addEventListener('click', add);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); add(); }
+    });
+    render();
+  });
+})();
+</script>
+{% endif %}
+
 <script>
 // "Draft description" asks the model for an opening paragraph and drops it in
 // the box, where it is edited before the download - never sent out unread.
@@ -311,6 +422,7 @@
 
       var body = new FormData();
       body.append('option', form.dataset.option);
+      body.append('film_ids', form.querySelector('input[name=film_ids]').value);
 
       fetch('/describe/' + form.dataset.token, {method: 'POST', body: body})
         .then(function (r) { return r.json().then(function (d) { return [r.ok, d]; }); })
@@ -340,6 +452,7 @@
       button.disabled = true;
       var body = new FormData();
       body.append('option', form.dataset.option);
+      body.append('film_ids', form.querySelector('input[name=film_ids]').value);
       body.append('title', name);
       body.append('intro', box ? box.value : '');
       fetch('/programmes/save/' + form.dataset.token, {method: 'POST', body: body})

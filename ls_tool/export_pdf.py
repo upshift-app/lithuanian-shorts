@@ -20,7 +20,7 @@ from reportlab.platypus import (Image, KeepTogether, PageBreak, Paragraph,
 
 from .config import ASSETS_DIR, OUTPUT_DIR
 from .fonts import register_fonts, register_serif_fonts
-from .i18n import (DEFAULT_LANG, film_country, film_genre, film_language,
+from .i18n import (DEFAULT_LANG, company_lines, film_country, film_genre, film_language,
                    film_synopsis, film_title, film_url, minutes_label,
                    norm_lang, t)
 from .programme import Programme
@@ -322,7 +322,7 @@ def _film_block(film, lang: str, st, text_width: float, still_width: float,
 def programme_pdf(proposals: Sequence[Programme], alternates=(),
                   path: Optional[Path] = None, subtitle: Optional[str] = None,
                   lang: Optional[str] = None, notes: bool = True,
-                  film_gap: float = 18) -> Path:
+                  film_gap: float = 18, company: Optional[dict] = None) -> Path:
     """One PDF per programme. ``notes=False`` leaves out the curatorial
     apparatus - the shortfall warnings and the like - for a document sent to
     a venue rather than around the office. ``film_gap`` is the space in points
@@ -345,6 +345,10 @@ def programme_pdf(proposals: Sequence[Programme], alternates=(),
     # Who prepared the proposal, named above the logo, as the agency asked.
     story += [Paragraph(t(lang, "prepared_by"), st["by_label"]),
               Paragraph(t(lang, "agency"), st["by_name"])]
+    for line in company_lines(company, lang):
+        story.append(Paragraph(_esc(line), st["note"]))
+    if company_lines(company, lang):
+        story.append(Spacer(1, 8))
     logo = _logo()
     if logo is not None:
         story += [logo, Spacer(1, 14 * mm)]
@@ -413,7 +417,8 @@ def programme_pdf(proposals: Sequence[Programme], alternates=(),
 def report_pdf(reports: Sequence[FilmReport], path: Optional[Path] = None,
                title: Optional[str] = None, period: Optional[str] = None,
                recipient: Optional[str] = None,
-               lang: Optional[str] = None, film_gap: float = 14) -> Path:
+               lang: Optional[str] = None, film_gap: float = 14,
+               company: Optional[dict] = None) -> Path:
     lang = norm_lang(lang)
     title = title or t(lang, "report_title")
 
@@ -431,6 +436,10 @@ def report_pdf(reports: Sequence[FilmReport], path: Optional[Path] = None,
     if period:
         line += f" &middot; {t(lang, 'period')} {_esc(period)}"
     story.append(Paragraph(line, st["meta"]))
+    for co_line in company_lines(company, lang):
+        story.append(Paragraph(_esc(co_line), st["small"]))
+    if company_lines(company, lang):
+        story.append(Spacer(1, 8))
 
     agg = totals(reports)
     summary = Table(

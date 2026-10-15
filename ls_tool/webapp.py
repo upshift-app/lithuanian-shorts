@@ -24,6 +24,7 @@ from . import store
 from .catalog import fold, load_catalog
 from .config import OUTPUT_DIR
 from .i18n import film_title, minutes_label, norm_lang
+from .i18n import t as t_doc
 from .ui_strings import ui as ui_string
 from .programme import MAX_PROPOSALS, Programme, ProgrammeRequest, generate
 
@@ -115,6 +116,69 @@ def _programme_from_json(raw: dict, cat, req: ProgrammeRequest) -> Programme:
     films = [f for f in (cat.by_id(i) for i in raw.get("ids") or []) if f]
     return Programme(films=films, score=raw.get("score") or 0.0,
                      breakdown=raw.get("breakdown") or {}, request=req)
+
+
+def _programmes_json(cat) -> dict:
+    """Saved programmes and their films, for the fee panel in the log."""
+    out = {}
+    for p in _saved_programmes_or_empty():
+        films = [f for f in (cat.by_id(i) for i in p.get("film_ids") or []) if f]
+        out[str(p["id"])] = {
+            "title": p["title"],
+            "films": [{"id": f.id, "title": film_title(f, "en")} for f in films],
+        }
+    return out
+
+
+def _with_edited_films(prog: Programme, form, cat) -> Programme:
+    """The programme as the curator left it: the browser posts the film ids in
+    the order shown, after any reordering, removing or adding."""
+    raw = form.get("film_ids")
+    if raw is None:
+        return prog
+    ids, seen = [], set()
+    for x in _split(raw):
+        if x.isdigit() and int(x) not in seen:
+            seen.add(int(x))
+            ids.append(int(x))
+    films = [f for f in (cat.by_id(i) for i in ids) if f]
+    if not films:
+        return prog
+    return Programme(films=films, score=prog.score, breakdown=prog.breakdown,
+                     request=prog.request)
+
+
+def _film_index(cat, lang: str) -> dict:
+    """Every film's display data, so the page can redraw an edited programme."""
+    return {str(f.id): {
+        "t": film_title(f, lang), "d": f.director or "", "y": f.year or "",
+        "g": ((f.genre_en or f.genre) if lang == "en" else f.genre) or "",
+        "m": f.duration_min or 0, "k": f.keywords_in(lang),
+        "u": (f.url_en if lang == "en" and f.url_en else f.url) or "",
+    } for f in cat.films}
+
+
+def _settings(key: str) -> dict:
+    """Settings saved on the Settings page; empty until sql/08 has been run."""
+    try:
+        return store.settings_get(key)
+    except Exception:
+        return {}
+
+
+def _fees() -> dict:
+    saved = _settings("fees")
+    out = dict(scr.DEFAULT_FEES)
+    for k in out:
+        v = _float(saved.get(k))
+        if v is not None and v >= 0:
+            out[k] = v
+    return out
+
+
+def _company() -> dict:
+    return {k: (v or "").strip() for k, v in _settings("company").items()
+            if isinstance(v, str)}
 
 
 def _saved_programmes_or_empty() -> list:
@@ -395,6 +459,9 @@ def create_app() -> Flask:
             "alternates": alternates,
             "pool_size": len(pool),
             "found_total": req.found_total,
+            "film_index": _film_index(cat, ui_lang()),
+            "time_labels": {"hour": t_doc(ui_lang(), "hour"),
+                            "minute": t_doc(ui_lang(), "minute")},
             "token": token,
             "req": req,
             "submitted": True,
@@ -497,9 +564,10 @@ def create_app() -> Flask:
         option = _int(request.form.get("option")) or 1
         if not 1 <= option <= len(proposals):
             abort(404)
+        prog = _with_edited_films(proposals[option - 1], request.form, catalog())
         try:
             text = enrich.describe_programme(
-                proposals[option - 1].films, req.title or None, req.lang)
+                prog.films, req.title or None, req.lang)
         except enrich.EnrichError as e:
             return jsonify({"error": str(e)}), 502
         return jsonify({"text": text})
@@ -522,7 +590,8 @@ def create_app() -> Flask:
         if option is not None:
             if not 1 <= option <= len(proposals):
                 abort(404)
-            proposals = [proposals[option - 1]]
+            proposals = [_with_edited_films(proposals[option - 1], request.form,
+                                            catalog())]
 
         lang = req.lang
         title = req.title or ""
@@ -532,11 +601,41 @@ def create_app() -> Flask:
             alternates = []
         if fmt == "docx":
             path = export_docx.programme_docx(proposals, alternates, path=path,
-                                              lang=lang)
+                                              lang=lang, company=_company())
         else:
             path = export_pdf.programme_pdf(proposals, alternates, path=path,
-                                            lang=lang, notes=option is None)
+                                            lang=lang, notes=option is None,
+                                            company=_company())
         return send_file(str(path), as_attachment=True, download_name=name)
+
+    # --------------------------------------------------------------- settings
+    COMPANY_FIELDS = ("name", "address", "code", "vat", "email", "phone",
+                      "website", "iban")
+
+    @app.route("/settings", methods=["GET", "POST"])
+    def settings():
+        saved = notice = error = None
+        if request.method == "POST":
+            company = {k: (request.form.get(f"co_{k}") or "").strip()
+                       for k in COMPANY_FIELDS}
+            fees = {}
+            for k in scr.DEFAULT_FEES:
+                v = _float(request.form.get(f"fee_{k}"))
+                if v is None or v < 0:
+                    error = ui_string(ui_lang(), "st_err_fee")
+                    break
+                fees[k] = v
+            if error is None:
+                try:
+                    uid = auth.current_user()["id"]
+                    store.settings_put("company", company, actor=uid)
+                    store.settings_put("fees", fees, actor=uid)
+                    notice = "st_saved"
+                except Exception as e:
+                    error = str(e)[:300]
+        return render_template("settings.html", company=_company(),
+                               fees=_fees(), fields=COMPANY_FIELDS,
+                               error=error, notice=notice)
 
     # ------------------------------------------------------ saved programmes
     @app.route("/programmes/save/<token>", methods=["POST"])
@@ -546,7 +645,7 @@ def create_app() -> Flask:
         option = _int(request.form.get("option")) or 1
         if not 1 <= option <= len(proposals):
             abort(404)
-        prog = proposals[option - 1]
+        prog = _with_edited_films(proposals[option - 1], request.form, catalog())
         title = (request.form.get("title") or req.title or "").strip() or (
             f"{ui_string(req.lang, 'sp_default_name')} {_dt.date.today():%Y-%m-%d}")
         intro = (request.form.get("intro") or "").strip() or req.intro
@@ -603,6 +702,28 @@ def create_app() -> Flask:
             fee = _float(form.get("fee_eur"), 0.0)
             if fee is None or fee < 0:
                 errors.append(ui_string(lang, "s_err_fee"))
+            kind = form.get("kind") if form.get("kind") in (
+                "commercial", "non_commercial") else "commercial"
+            manual = form.get("fee_mode") == "manual"
+            film_revenues = []
+            if is_programme and films_in and not errors:
+                if manual:
+                    for f in films_in:
+                        part = _float(form.get(f"film_rev_{f.id}"), 0.0)
+                        if part is None or part < 0:
+                            errors.append(ui_string(lang, "s_err_fee"))
+                            break
+                        film_revenues.append(part)
+                    if not errors and not fee:
+                        fee = round(sum(film_revenues), 2)
+                else:
+                    agency = _fees().get(kind, 0.0)
+                    if fee < agency:
+                        errors.append(ui_string(lang, "s_err_below_agency",
+                                                fee=f"{agency:.2f}"))
+                    else:
+                        film_revenues = scr.split_programme_revenue(
+                            fee, agency, len(films_in))
             raw_date = (form.get("date") or "").strip()
             date = _date(raw_date) if raw_date else None
             if raw_date and date is None:
@@ -622,15 +743,14 @@ def create_app() -> Flask:
                 actor = auth.current_user()["id"]
                 if is_programme:
                     # One row per film, so the per-film and per-director
-                    # reports stay right. The fee typed is for the whole
-                    # programme and is split evenly between its films.
-                    share = round(fee / len(films_in), 2)
-                    shares = [share] * len(films_in)
-                    shares[0] = round(fee - share * (len(films_in) - 1), 2)
-                    for f, part in zip(films_in, shares):
+                    # reports stay right. fee_eur holds the programme revenue
+                    # and revenue_eur what the film earns of it. Not multiplied
+                    # by the number of screenings: that amount is agreed for
+                    # the whole booking.
+                    for f, part in zip(films_in, film_revenues):
                         scr.append_screening(dict(
                             common, film_id=f.id, film_title=f.title,
-                            fee_eur=part,
+                            fee_eur=fee, revenue_eur=part, kind=kind,
                             programme=programme or saved["title"]), actor=actor)
                 else:
                     scr.append_screening(dict(
@@ -671,6 +791,10 @@ def create_app() -> Flask:
             "screenings.html", catalog=cat,
             films=sorted(cat.films, key=lambda f: (f.title or "").lower()),
             saved_programmes=_saved_programmes_or_empty(),
+            prog_json=_programmes_json(cat),
+            fees=_fees(),
+            film_rev=({k[9:]: v for k, v in form.items()
+                       if k.startswith("film_rev_")}),
             entries=entries, days=days, error=error, errors=errors, form=form,
             notice={"added": "s_added", "deleted": "s_deleted"}.get(notice),
             totals={"n": len(rows),
@@ -766,9 +890,9 @@ def create_app() -> Flask:
         kwargs = dict(title=payload.get("title"), period=payload.get("period"),
                       recipient=payload.get("recipient"), lang=payload.get("lang"))
         if fmt == "docx":
-            path = export_docx.report_docx(built, **kwargs)
+            path = export_docx.report_docx(built, company=_company(), **kwargs)
         else:
-            path = export_pdf.report_pdf(built, **kwargs)
+            path = export_pdf.report_pdf(built, company=_company(), **kwargs)
         return send_file(str(path), as_attachment=True, download_name=path.name)
 
     @app.route("/reports/sample.<fmt>")
@@ -787,9 +911,9 @@ def create_app() -> Flask:
                       recipient=ui_string(lang, "r_sample_note"),
                       period=None, lang=lang)
         if fmt == "docx":
-            path = export_docx.report_docx(built, **kwargs)
+            path = export_docx.report_docx(built, company=_company(), **kwargs)
         else:
-            path = export_pdf.report_pdf(built, **kwargs)
+            path = export_pdf.report_pdf(built, company=_company(), **kwargs)
         return send_file(str(path), as_attachment=True, download_name=path.name)
 
     # --------------------------------------------------------------- archive

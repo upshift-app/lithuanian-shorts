@@ -65,10 +65,17 @@ class Screening:
     # guessing which one it was. None for rows built in memory. It kept the
     # name `row` from the spreadsheet days because the templates use it.
     row: Optional[int] = None
+    # When set this is the revenue as agreed, not multiplied by the count
+    # (a programme's amount covers the whole booking).
+    revenue_eur: Optional[float] = None
+    kind: Optional[str] = None          # "commercial" | "non_commercial"
 
     @property
     def revenue(self) -> float:
-        """Fee is per screening event as entered; multiplied by the count."""
+        """Fee is per screening event as entered; multiplied by the count,
+        unless the revenue was fixed for the whole booking."""
+        if self.revenue_eur is not None:
+            return round(float(self.revenue_eur), 2)
         return round(float(self.fee_eur or 0.0) * int(self.screenings or 1), 2)
 
     @property
@@ -186,6 +193,9 @@ def load_screenings() -> List[Screening]:
         programme=row.get("programme"),
         notes=row.get("notes"),
         row=row.get("id"),
+        revenue_eur=(float(row["revenue_eur"])
+                     if row.get("revenue_eur") is not None else None),
+        kind=row.get("kind"),
     ) for row in store.screening_rows()]
 
 
@@ -278,6 +288,22 @@ def write_template(path=SCREENINGS_XLSX, overwrite: bool = False, example_rows=(
 def append_screening(data: Dict, actor: Optional[str] = None) -> int:
     """Add one screening and return its database id."""
     return int(store.screening_add(data, actor=actor)["id"])
+
+
+DEFAULT_FEES = {"commercial": 150.0, "non_commercial": 120.0}
+
+
+def split_programme_revenue(total: float, agency_fee: float, n: int) -> List[float]:
+    """What each film of a programme earns: (total - agency fee) / n.
+
+    Rounded to cents, with the remainder on the first film so the parts add up
+    to exactly total - agency_fee.
+    """
+    pool = round(float(total) - float(agency_fee), 2)
+    share = round(pool / n, 2)
+    shares = [share] * n
+    shares[0] = round(pool - share * (n - 1), 2)
+    return shares
 
 
 def delete_screening(screening_id: int) -> bool:

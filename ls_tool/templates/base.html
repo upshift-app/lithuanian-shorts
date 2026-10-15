@@ -116,6 +116,7 @@
     <a href="{{ url_for('screening_log') }}" class="{{ 'on' if page=='screenings' }}">{{ ui('nav_screenings') }}</a>
     <a href="{{ url_for('reports') }}" class="{{ 'on' if page=='reports' }}">{{ ui('nav_reports') }}</a>
     <a href="{{ url_for('films') }}" class="{{ 'on' if page=='films' }}">{{ ui('nav_archive') }}</a>
+    <a href="{{ url_for('settings') }}" class="{{ 'on' if page=='settings' }}">{{ ui('nav_settings') }}</a>
     <a href="{{ url_for('keywords') }}" class="{{ 'on' if page=='keywords' }}">{{ ui('nav_keywords') }}</a>
     {% if user and user.is_admin %}
     <a href="{{ url_for('users') }}" class="{{ 'on' if page=='users' }}">{{ ui('nav_users') }}</a>
