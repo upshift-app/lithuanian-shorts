@@ -107,7 +107,10 @@
         </div>
       </div>
     </div>
-    <div class="small muted" id="auto-note" style="margin-top:10px"></div>
+    <div class="small muted" style="margin-top:10px">
+      <span id="auto-note"></span>
+      <a href="{{ url_for('settings') }}" target="_blank" rel="noopener">{{ ui('s_change_fees') }}</a>
+    </div>
     <div id="manual-box" hidden style="margin-top:10px">
       <div class="small muted" style="margin-bottom:6px">{{ ui('s_manual_note') }}</div>
       <table id="manual-table"><tbody></tbody></table>
@@ -269,6 +272,7 @@
     var manual = mode() === 'manual';
     box.hidden = !manual;
     note.hidden = manual;
+    note.parentNode.hidden = manual;
     if (!manual) {
       var agency = FEES[kind.value] || 0;
       var n = PROGS[id] ? PROGS[id].films.length : 1;
