@@ -131,7 +131,7 @@ def _styles(theme: Theme) -> dict:
     serif, serif_b = register_serif_fonts()
     body_f, body_b = (serif, serif_b) if theme.serif else (sans, sans_b)
     return {
-        "eyebrow": ParagraphStyle("eyebrow", fontName=sans_b, fontSize=7.5,
+        "eyebrow": ParagraphStyle("eyebrow", fontName=sans_b, fontSize=9,
                                   textColor=theme.accent, leading=10,
                                   spaceAfter=4),
         "title": ParagraphStyle("title", fontName=sans_b, fontSize=24,
@@ -236,7 +236,7 @@ def _header(theme: Theme, st: dict, width: float, label: str,
     out: List = []
     logo = _logo_flowable(54 * mm if theme.header == "rule" else 44 * mm)
     left: List = [logo, Spacer(1, 3 * mm)] if logo is not None else []
-    left.append(Paragraph(_esc(label.upper()), st["eyebrow"]))
+    left.append(Paragraph(_esc(label), st["eyebrow"]))
     right = [Paragraph(_esc(line), st["company"]) for line in (company or [])]
     if right:
         head = Table([[left, right]], colWidths=[width * 0.55, width * 0.45])
