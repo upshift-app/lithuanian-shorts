@@ -437,7 +437,7 @@ def report_pdf(reports: Sequence, path: Path, theme: Theme,
     width = A4[0] - 2 * theme.margin - 12
     title = title or tr(lang, "report_title")
 
-    story: List = _header(theme, st, width, tr(lang, "brand"),
+    story: List = _header(theme, st, width, tr(lang, "agency"),
                           company_lines(company, lang, split_contact=True))
     story.append(Paragraph(_esc(title), st["title"]))
     if recipient:
