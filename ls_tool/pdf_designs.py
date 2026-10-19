@@ -362,7 +362,7 @@ def programme_pdf(programme, path: Path, theme: Theme,
     heading = req.title or t(lang, "programme_title")
 
     story: List = _header(theme, st, width, t(lang, "agency"),
-                          company_lines(company, lang))
+                          company_lines(company, lang, split_contact=True))
 
     for idx, prog in enumerate(progs, 1):
         if idx > 1:
@@ -438,7 +438,7 @@ def report_pdf(reports: Sequence, path: Path, theme: Theme,
     title = title or tr(lang, "report_title")
 
     story: List = _header(theme, st, width, tr(lang, "brand"),
-                          company_lines(company, lang))
+                          company_lines(company, lang, split_contact=True))
     story.append(Paragraph(_esc(title), st["title"]))
     if recipient:
         story.append(Paragraph(_esc(recipient), st["lead"]))

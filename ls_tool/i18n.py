@@ -137,8 +137,10 @@ def norm_lang(lang: Optional[str]) -> str:
     return lang if lang in LANGUAGES else DEFAULT_LANG
 
 
-def company_lines(company: Optional[dict], lang: Optional[str]) -> List[str]:
-    """The company details as printed lines, empty fields left out."""
+def company_lines(company: Optional[dict], lang: Optional[str],
+                  split_contact: bool = False) -> List[str]:
+    """The company details as printed lines, empty fields left out.
+    ``split_contact`` puts website, email and phone on a line each."""
     c = {k: (v or "").strip() for k, v in (company or {}).items()
          if isinstance(v, str)}
     lines: List[str] = []
@@ -152,9 +154,12 @@ def company_lines(company: Optional[dict], lang: Optional[str]) -> List[str]:
         ids.append(f"{t(lang, 'co_vat')}: {c['vat']}")
     if ids:
         lines.append(" | ".join(ids))
-    contact = [c[k] for k in ("email", "phone", "website") if c.get(k)]
-    if contact:
-        lines.append(" | ".join(contact))
+    if split_contact:
+        lines += [c[k] for k in ("website", "email", "phone") if c.get(k)]
+    else:
+        contact = [c[k] for k in ("email", "phone", "website") if c.get(k)]
+        if contact:
+            lines.append(" | ".join(contact))
     if c.get("iban"):
         lines.append(f"{t(lang, 'co_iban')}: {c['iban']}")
     return lines
