@@ -319,7 +319,7 @@ def _film_block(film, lang: str, st, text_width: float, still_width: float,
     return KeepTogether([table])
 
 
-def programme_pdf(proposals: Sequence[Programme], alternates=(),
+def programme_pdf_classic(proposals: Sequence[Programme], alternates=(),
                   path: Optional[Path] = None, subtitle: Optional[str] = None,
                   lang: Optional[str] = None, notes: bool = True,
                   film_gap: float = 18, company: Optional[dict] = None) -> Path:
@@ -414,7 +414,7 @@ def programme_pdf(proposals: Sequence[Programme], alternates=(),
 
 # ------------------------------------------------------------------- report pdf
 
-def report_pdf(reports: Sequence[FilmReport], path: Optional[Path] = None,
+def report_pdf_classic(reports: Sequence[FilmReport], path: Optional[Path] = None,
                title: Optional[str] = None, period: Optional[str] = None,
                recipient: Optional[str] = None,
                lang: Optional[str] = None, film_gap: float = 14,
@@ -501,6 +501,40 @@ def report_pdf(reports: Sequence[FilmReport], path: Optional[Path] = None,
 
     path = Path(path) if path else OUTPUT_DIR / _default_name(title, "pdf", lang)
     return _build(story, path, title)
+
+
+# ------------------------------------------------- the agency's chosen design
+
+def programme_pdf(proposals: Sequence[Programme], alternates=(),
+                  path: Optional[Path] = None, subtitle: Optional[str] = None,
+                  lang: Optional[str] = None, notes: bool = True,
+                  film_gap: float = 18, company: Optional[dict] = None) -> Path:
+    """The programme PDF in the agency's design: plain cards, navy accent,
+    company details at the right edge of the header. ``film_gap`` is kept for
+    callers of the classic layout and is ignored."""
+    from .pdf_designs import THEMES, programme_pdf as render
+    req = proposals[0].request if proposals else None
+    lang = norm_lang(lang or (req.lang if req else DEFAULT_LANG))
+    heading = (req.title if req and req.title else None) or t(lang, "programme_title")
+    path = Path(path) if path else OUTPUT_DIR / _default_name(heading, "pdf", lang)
+    return render(list(proposals), path, THEMES["brand"], lang=lang,
+                  company=company, alternates=alternates, notes=notes,
+                  subtitle=subtitle)
+
+
+def report_pdf(reports: Sequence[FilmReport], path: Optional[Path] = None,
+               title: Optional[str] = None, period: Optional[str] = None,
+               recipient: Optional[str] = None,
+               lang: Optional[str] = None, film_gap: float = 14,
+               company: Optional[dict] = None) -> Path:
+    """The report PDF in the agency's design (see ``programme_pdf``)."""
+    from .pdf_designs import THEMES, report_pdf as render
+    lang = norm_lang(lang)
+    title = title or t(lang, "report_title")
+    path = Path(path) if path else OUTPUT_DIR / _default_name(title, "pdf", lang)
+    return render(reports, path, THEMES["brand"], title=title,
+                  recipient=recipient, lang=lang, company=company,
+                  period=period)
 
 
 def _default_name(title: str, ext: str, lang: str = DEFAULT_LANG) -> str:
