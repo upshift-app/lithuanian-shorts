@@ -62,7 +62,7 @@ def _setup(doc: Document) -> None:
 def _footer(section) -> None:
     p = section.footer.paragraphs[0]
     p.text = ""
-    r = p.add_run("Lithuanian Shorts\t")
+    r = p.add_run("Lithuanian Shorts\t\t")
     r.font.size, r.font.color.rgb = Pt(7.5), MUTED
     num = p.add_run()
     num.font.size, num.font.color.rgb = Pt(7.5), MUTED
